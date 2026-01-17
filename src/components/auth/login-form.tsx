@@ -1,89 +1,108 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+// import { signIn } from "next-auth/react";
+import { loginUserApi, googleLoginApi } from "@/client/api/auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Mail, Lock, ArrowRight, Brain, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GoogleButton } from "@/components/auth/google-button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(1, { message: "Password is required." }),
 });
 
-export default function LoginForm() {
+type FormValues = z.infer<typeof formSchema>;
+
+const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const callbackUrl = searchParams?.get("callbackUrl") || "/";
 
-  const [loadingType, setLoadingType] = useState(null);
+  const [loadingType, setLoadingType] = useState<"google" | "credentials" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const form = useForm({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
+  // const handleGoogleSignIn = async () => {
+  //   setLoadingType("google");
+  //   try {
+  //     await signIn("google", { callbackUrl });
+  //   } catch (error) {
+  //     toast.error("Google Sign-In failed. Please try again.");
+  //     setLoadingType(null);
+  //   }
+  // };
+
   const handleGoogleSignIn = async () => {
-    setLoadingType("google");
-    try {
-      await signIn("google", { callbackUrl });
-    } catch (error) {
-      toast.error("Google Sign-In failed. Please try again.");
-      setLoadingType(null);
-    }
-  };
+  setLoadingType("google");
 
-  async function onSubmit(values) {
-    setLoadingType("credentials");
-
-    try {
-      const res = await signIn("credentials", {
-        redirect: false,
-        email: values.email,
-        password: values.password,
-        type: "password", // ⭐ FIX ADDED
-      });
-
-      if (res?.error) {
-        toast.error("Login Failed", {
-          description: res.error || "Invalid email or password.",
-        });
-        setLoadingType(null);
-      } else {
-        toast.success("Welcome back!", {
-          description: "Logged in successfully.",
-        });
-        router.push(callbackUrl);
-        router.refresh();
-      }
-    } catch (error) {
-      toast.error("Error", {
-        description: "Something went wrong. Please try again.",
-      });
-      setLoadingType(null);
-    }
+  try {
+    await googleLoginApi();
+    toast.success("Welcome!", { description: "Logged in with Google." });
+    router.push(callbackUrl);
+  } catch (error: any) {
+    toast.error(error.message || "Google Sign-In failed.");
+    setLoadingType(null);
   }
+};
+
+
+  // const onSubmit: SubmitHandler<FormValues> = async (values) => {
+  //   setLoadingType("credentials");
+  //   try {
+  //     const res = await signIn("credentials", {
+  //       redirect: false,
+  //       email: values.email,
+  //       password: values.password,
+  //       type: "password",
+  //     });
+
+  //     if (res?.error) {
+  //       toast.error("Login Failed", { description: res.error || "Invalid email or password." });
+  //       setLoadingType(null);
+  //     } else {
+  //       toast.success("Welcome back!", { description: "Logged in successfully." });
+  //       router.push(callbackUrl);
+  //       router.refresh();
+  //     }
+  //   } catch (error) {
+  //     toast.error("Error", { description: "Something went wrong. Please try again." });
+  //     setLoadingType(null);
+  //   }
+  // };
+
+  const onSubmit: SubmitHandler<FormValues> = async (values) => {
+  setLoadingType("credentials");
+
+  try {
+    await loginUserApi(values);
+
+    toast.success("Welcome back!", {
+      description: "Logged in successfully.",
+    });
+
+    router.push(callbackUrl);
+  } catch (error: any) {
+    toast.error("Login Failed", {
+      description: error.message || "Invalid email or password.",
+    });
+    setLoadingType(null);
+  }
+};
 
   const isLoading = !!loadingType;
 
@@ -93,20 +112,12 @@ export default function LoginForm() {
         <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-zinc-900 text-white shadow-lg mb-2">
           <Brain className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-          Mindnamo
-        </h1>
-        <p className="text-sm text-zinc-500">
-          Enter your credentials to access your expert account.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Mindnamo</h1>
+        <p className="text-sm text-zinc-500">Enter your credentials to access your expert account.</p>
       </div>
 
       <div className="space-y-4">
-        <GoogleButton
-          onClick={handleGoogleSignIn}
-          isLoading={loadingType === "google"}
-          disabled={isLoading}
-        />
+        <GoogleButton onClick={handleGoogleSignIn} isLoading={loadingType === "google"} disabled={isLoading} />
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -177,15 +188,10 @@ export default function LoginForm() {
                         disabled={isLoading}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 transition-colors disabled:opacity-50"
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </FormControl>
-
                   <FormMessage />
                 </FormItem>
               )}
@@ -199,8 +205,7 @@ export default function LoginForm() {
             >
               {loadingType === "credentials" ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing In...
                 </>
               ) : (
                 <>
@@ -210,20 +215,22 @@ export default function LoginForm() {
             </Button>
           </form>
         </Form>
-      </div>
 
-      <div className="text-center text-sm text-zinc-500">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className={cn(
-            "font-semibold text-zinc-900 hover:underline hover:text-zinc-700 transition-colors",
-            isLoading && "pointer-events-none opacity-50"
-          )}
-        >
-          Sign up
-        </Link>
+        <div className="text-center text-sm text-zinc-500">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/register"
+            className={cn(
+              "font-semibold text-zinc-900 hover:underline hover:text-zinc-700 transition-colors",
+              isLoading && "pointer-events-none opacity-50"
+            )}
+          >
+            Sign up
+          </Link>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default LoginForm;

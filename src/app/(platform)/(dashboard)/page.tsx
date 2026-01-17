@@ -106,40 +106,60 @@ export default async function DashboardPage() {
   /* ---------------------------------------------------------
    * STATE 3: ONBOARDING STEPS
    * --------------------------------------------------------- */
-  if (status === "ONBOARDING") {
-    return (
-      <div className="space-y-8 max-w-5xl mx-auto py-8">
-        <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Welcome, Expert!</h2>
-        <p className="text-zinc-500 text-lg">Complete these steps to activate your account.</p>
+  if (status === "ONBOARDING" && onboarding) {
+  const progress = onboarding.progress ?? 0;
 
-        <Card className="border-zinc-200 shadow-sm bg-zinc-900 text-white overflow-hidden relative rounded-2xl">
-          <CardHeader className="relative z-10 pb-2">
-            <CardTitle className="flex justify-between items-center text-lg">
-              <span>Setup Progress</span>
-              <span className="text-emerald-400 font-mono">{Math.round(onboarding.progress)}%</span>
-            </CardTitle>
-          </CardHeader>
+  return (
+    <div className="space-y-8 max-w-5xl mx-auto py-8">
+      <h2 className="text-3xl font-bold tracking-tight text-zinc-900">
+        Welcome, Expert!
+      </h2>
+      <p className="text-zinc-500 text-lg">
+        Complete these steps to activate your account.
+      </p>
 
-          <CardContent className="relative z-10 space-y-8">
-            {/* Progress Bar */}
-            <div className="w-full bg-zinc-800 rounded-full h-3">
-              <div
-                className="bg-emerald-500 h-3 rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-                style={{ width: `${onboarding.progress}%` }}
-              ></div>
-            </div>
+      <Card className="border-zinc-200 shadow-sm bg-zinc-900 text-white overflow-hidden relative rounded-2xl">
+        <CardHeader className="relative z-10 pb-2">
+          <CardTitle className="flex justify-between items-center text-lg">
+            <span>Setup Progress</span>
+            <span className="text-emerald-400 font-mono">
+              {Math.round(progress)}%
+            </span>
+          </CardTitle>
+        </CardHeader>
 
-            {/* Step Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <StepItem label="Professional Bio" done={onboarding.progress >= 33} link="/profile?tab=identity" />
-              <StepItem label="Add Services" done={onboarding.progress >= 66} link="/profile?tab=services" />
-              <StepItem label="Upload License" done={onboarding.progress >= 99} link="/profile?tab=documents" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+        <CardContent className="relative z-10 space-y-8">
+          {/* Progress Bar */}
+          <div className="w-full bg-zinc-800 rounded-full h-3">
+            <div
+              className="bg-emerald-500 h-3 rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(16,185,129,0.4)]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {/* Step Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <StepItem
+              label="Professional Bio"
+              done={progress >= 33}
+              link="/profile?tab=identity"
+            />
+            <StepItem
+              label="Add Services"
+              done={progress >= 66}
+              link="/profile?tab=services"
+            />
+            <StepItem
+              label="Upload License"
+              done={progress >= 99}
+              link="/profile?tab=documents"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
   /* ---------------------------------------------------------
  * STATE 4: VERIFIED EXPERT DASHBOARD

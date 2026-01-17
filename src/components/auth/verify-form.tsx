@@ -34,19 +34,25 @@ const verifySchema = z.object({
   otp: z.string().min(6, { message: "Your code must be 6 digits." }),
 });
 
+type VerifyFormValues = z.infer<typeof verifySchema>;
+
 export default function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Accept both email= and data= (base64) from URL
-  let emailParam = searchParams.get("email");
-  const encoded = searchParams.get("data");
+  let emailParam: string | null = null;
 
-  if (!emailParam && encoded) {
-    try {
-      emailParam = atob(encoded);
-    } catch {
-      emailParam = null;
+  if (searchParams) {
+    emailParam = searchParams.get("email");
+    const encoded = searchParams.get("data");
+
+    if (!emailParam && encoded) {
+      try {
+        emailParam = atob(encoded);
+      } catch {
+        emailParam = null;
+      }
     }
   }
 
@@ -60,14 +66,16 @@ export default function VerifyForm() {
     : "your email";
 
   useEffect(() => {
-    let timer;
+    let timer: ReturnType<typeof setInterval> | undefined;
     if (countdown > 0) {
       timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     }
-    return () => clearInterval(timer);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   }, [countdown]);
 
-  const form = useForm({
+  const form = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
     defaultValues: { otp: "" },
   });
@@ -98,7 +106,7 @@ export default function VerifyForm() {
     }
   }
 
-  async function onSubmit(values) {
+  async function onSubmit(values: VerifyFormValues) {
     if (!email) {
       toast.error("Email missing. Please register again.");
       router.push("/register");
@@ -112,7 +120,7 @@ export default function VerifyForm() {
         redirect: false,
         email: email,
         otp: values.otp,
-        type: "otp", // ⭐ FIX ADDED
+        type: "otp",
       });
 
       if (res?.error) {
@@ -168,7 +176,7 @@ export default function VerifyForm() {
                 <FormLabel className="sr-only">One-Time Password</FormLabel>
                 <FormControl>
                   <InputOTP
-                    maxLength={6}
+                    maxLength={6} // ✅ Required prop
                     pattern={REGEXP_ONLY_DIGITS}
                     disabled={isLoading}
                     {...field}

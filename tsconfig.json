@@ -35,7 +35,7 @@
     "**/*.mts",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "src/components/auth/login-form.tsx", "src/components/auth/verify-form.tsx", "src/components/ui/input-otp.tsx"  ],
   "exclude": [
     "node_modules"
   ]

@@ -1,19 +1,3 @@
-/*
- * File: src/components/video/Whiteboard.js
- *
- * EXPERT SIDE – FINAL VERSION
- * ----------------------------------------
- * FEATURES:
- * - Realtime drawing sync (wb-draw)
- * - Throttled cursor emission (~30fps)
- * - Cursor visible even when hovering (not drawing)
- * - Clean cursor hide on mouse leave / touch end
- * - Local expert watermark follows cursor instantly (no socket delay)
- * - Resize-safe redraw
- * - White background preserved
- * - Matches User-side behavior exactly
- */
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -26,34 +10,56 @@ import { cn } from "@/lib/utils";
  * -------------------------------------- */
 
 const COLORS = ["#000000", "#e11d48", "#2563eb", "#16a34a", "#d97706"];
-const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png"; // replace with your logo
+const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
+
+/* ----------------------------------------
+ * Types
+ * -------------------------------------- */
+
+type WhiteboardProps = {
+  socket?: any;
+  roomId: string;
+  canvasRef?: React.RefObject<HTMLCanvasElement>;
+};
 
 /* ----------------------------------------
  * Component
  * -------------------------------------- */
 
-export default function Whiteboard({ socket, roomId, canvasRef }) {
-  const containerRef = useRef(null);
-  const internalRef = useRef(null);
-  const cursorRef = useRef(null);
-  const canvas = canvasRef || internalRef;
+export default function Whiteboard({
+  socket,
+  roomId,
+  canvasRef,
+}: WhiteboardProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cursorRef = useRef<HTMLImageElement | null>(null);
 
-  const lastEmitRef = useRef(0);
+  const canvas = canvasRef ?? internalCanvasRef;
+
+  // drawing state refs (DO NOT attach to canvas element)
+  const lastPointRef = useRef<{ x: number | null; y: number | null }>({
+    x: null,
+    y: null,
+  });
+
+  const lastEmitRef = useRef<number>(0);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState("#000000");
-  const [tool, setTool] = useState("pen");
+  const [tool, setTool] = useState<"pen" | "eraser">("pen");
 
   /* ----------------------------------------
    * Drawing Start
    * -------------------------------------- */
 
-  const startDrawing = (e) => {
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!canvas.current) return;
+
     const { offsetX, offsetY } = getCoordinates(e);
     setIsDrawing(true);
 
-    canvas.current.lastX = offsetX;
-    canvas.current.lastY = offsetY;
+    lastPointRef.current = { x: offsetX, y: offsetY };
 
     updateLocalCursor(offsetX, offsetY, true);
     drawLine(offsetX, offsetY, offsetX, offsetY, true);
@@ -64,23 +70,21 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
    * Pointer Move
    * -------------------------------------- */
 
-  const handleMove = (e) => {
+  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!canvas.current) return;
+
     const { offsetX, offsetY } = getCoordinates(e);
 
-    // Local visual cursor (instant)
     updateLocalCursor(offsetX, offsetY, true);
-
-    // Network cursor (throttled)
     emitCursor(offsetX, offsetY);
 
     if (!isDrawing) return;
 
-    const { lastX, lastY } = canvas.current;
-    if (lastX == null || lastY == null) return;
+    const { x, y } = lastPointRef.current;
+    if (x === null || y === null) return;
 
-    drawLine(lastX, lastY, offsetX, offsetY, true);
-    canvas.current.lastX = offsetX;
-    canvas.current.lastY = offsetY;
+    drawLine(x, y, offsetX, offsetY, true);
+    lastPointRef.current = { x: offsetX, y: offsetY };
   };
 
   /* ----------------------------------------
@@ -89,8 +93,7 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
 
   const stopDrawing = () => {
     setIsDrawing(false);
-    canvas.current.lastX = null;
-    canvas.current.lastY = null;
+    lastPointRef.current = { x: null, y: null };
   };
 
   const handleLeave = () => {
@@ -107,8 +110,18 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
    * Drawing Core
    * -------------------------------------- */
 
-  const drawLine = (x0, y0, x1, y1, emit) => {
+  const drawLine = (
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    emit: boolean
+  ) => {
+    if (!canvas.current) return;
+
     const ctx = canvas.current.getContext("2d");
+    if (!ctx) return;
+
     const w = canvas.current.width;
     const h = canvas.current.height;
 
@@ -138,37 +151,29 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
    * Cursor Emit (Network)
    * -------------------------------------- */
 
-  const emitCursor = (x, y) => {
+  const emitCursor = (x: number, y: number) => {
     if (!socket || !canvas.current) return;
 
     const now = Date.now();
     if (now - lastEmitRef.current < 30) return;
 
-    const w = canvas.current.width;
-    const h = canvas.current.height;
-
     socket.emit("wb-cursor", {
       roomId,
-      x: x / w,
-      y: y / h,
+      x: x / canvas.current.width,
+      y: y / canvas.current.height,
     });
 
     lastEmitRef.current = now;
   };
 
   /* ----------------------------------------
-   * Local Cursor (DOM)
+   * Local Cursor
    * -------------------------------------- */
 
-  const updateLocalCursor = (x, y, visible) => {
+  const updateLocalCursor = (x: number, y: number, visible: boolean) => {
     if (!cursorRef.current) return;
 
-    if (!visible) {
-      cursorRef.current.style.opacity = "0";
-      return;
-    }
-
-    cursorRef.current.style.opacity = "0.7";
+    cursorRef.current.style.opacity = visible ? "0.7" : "0";
     cursorRef.current.style.transform = `translate(${x + 10}px, ${y + 10}px)`;
   };
 
@@ -182,26 +187,29 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
    * Coordinates Helper
    * -------------------------------------- */
 
-  const getCoordinates = (e) => {
-    if (e.nativeEvent?.touches?.length) {
-      const rect = canvas.current.getBoundingClientRect();
+  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!canvas.current) return { offsetX: 0, offsetY: 0 };
+
+    const rect = canvas.current.getBoundingClientRect();
+
+    if ("touches" in e && e.touches.length) {
       return {
-        offsetX: e.nativeEvent.touches[0].clientX - rect.left,
-        offsetY: e.nativeEvent.touches[0].clientY - rect.top,
+        offsetX: e.touches[0].clientX - rect.left,
+        offsetY: e.touches[0].clientY - rect.top,
       };
     }
 
-    if (e.changedTouches?.length) {
-      const rect = canvas.current.getBoundingClientRect();
+    if ("changedTouches" in e && e.changedTouches.length) {
       return {
         offsetX: e.changedTouches[0].clientX - rect.left,
         offsetY: e.changedTouches[0].clientY - rect.top,
       };
     }
 
+    const mouseEvent = e as React.MouseEvent;
     return {
-      offsetX: e.nativeEvent?.offsetX ?? 0,
-      offsetY: e.nativeEvent?.offsetY ?? 0,
+      offsetX: mouseEvent.nativeEvent.offsetX,
+      offsetY: mouseEvent.nativeEvent.offsetY,
     };
   };
 
@@ -216,15 +224,19 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
       const temp = document.createElement("canvas");
       temp.width = canvas.current.width;
       temp.height = canvas.current.height;
-      temp.getContext("2d").drawImage(canvas.current, 0, 0);
+
+      const tempCtx = temp.getContext("2d");
+      const ctx = canvas.current.getContext("2d");
+      if (!tempCtx || !ctx) return;
+
+      tempCtx.drawImage(canvas.current, 0, 0);
 
       canvas.current.width = containerRef.current.offsetWidth;
       canvas.current.height = containerRef.current.offsetHeight;
 
-      const ctx = canvas.current.getContext("2d");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.current.width, canvas.current.height);
-      ctx.drawImage(temp, 0, 0, canvas.current.width, canvas.current.height);
+      ctx.drawImage(temp, 0, 0);
     };
 
     window.addEventListener("resize", handleResize);
@@ -238,9 +250,14 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
    * -------------------------------------- */
 
   const clearBoard = () => {
+    if (!canvas.current) return;
+
     const ctx = canvas.current.getContext("2d");
+    if (!ctx) return;
+
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.current.width, canvas.current.height);
+
     socket?.emit("wb-clear", roomId);
   };
 
@@ -265,7 +282,6 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         className="block w-full h-full touch-none"
       />
 
-      {/* LOCAL EXPERT WATERMARK */}
       <img
         ref={cursorRef}
         src={EXPERT_WATERMARK_URL}
@@ -274,7 +290,6 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
         style={{ top: 0, left: 0, willChange: "transform" }}
       />
 
-      {/* TOOLBAR */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur border border-zinc-200 shadow-lg rounded-full p-2 flex items-center gap-2 z-10">
         {COLORS.map((c) => (
           <button
@@ -285,9 +300,7 @@ export default function Whiteboard({ socket, roomId, canvasRef }) {
             }}
             className={cn(
               "w-6 h-6 rounded-full transition-transform hover:scale-110",
-              color === c &&
-                tool === "pen" &&
-                "ring-2 ring-offset-2 ring-zinc-400"
+              color === c && tool === "pen" && "ring-2 ring-offset-2 ring-zinc-400"
             )}
             style={{ backgroundColor: c }}
           />

@@ -33,7 +33,7 @@ const formSchema = z.object({
 export default function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams?.get("token");
 
   const [isLoading, setIsLoading] = useState(false);
 

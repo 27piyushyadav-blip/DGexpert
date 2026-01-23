@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-import { forgotPassword } from "@/actions/forgot-password";
+// Backend removed - component is now presentational
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -37,22 +37,12 @@ export default function ForgotPasswordForm() {
 
   async function onSubmit(values) {
     setIsLoading(true);
-    try {
-      const result = await forgotPassword(values);
-      
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success("Check your inbox", {
-          description: result.success,
-        });
-        form.reset();
-      }
-    } catch (error) {
-      toast.error("Something went wrong.");
-    } finally {
-      setIsLoading(false);
-    }
+    // UI-only: No backend call
+    toast.success("Check your inbox", {
+      description: "If an account exists, you'll receive a reset link.",
+    });
+    form.reset();
+    setIsLoading(false);
   }
 
   return (

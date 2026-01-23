@@ -23,17 +23,17 @@ import Whiteboard from "@/components/video/Whiteboard";
 export default function ExpertVideoCallPage() {
   const params = useParams();
   const router = useRouter();
-  const meetingId = params.id;
+  const meetingId = typeof params.id === "string" ? params.id : params.id?.[0] || "";
 
   // ---------------- REFS ----------------
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const whiteboardRef = useRef(null); // passed to Whiteboard component
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const whiteboardRef = useRef<HTMLCanvasElement>(null); // passed to Whiteboard component
 
-  const peerRef = useRef(null);
-  const socketRef = useRef(null);
-  const iceQueueRef = useRef([]);
-  const localStreamRef = useRef(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const socketRef = useRef<any>(null);
+  const iceQueueRef = useRef<any[]>([]);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   // ---------------- STATE ----------------
   const [isMuted, setIsMuted] = useState(false);
@@ -215,8 +215,8 @@ export default function ExpertVideoCallPage() {
         <div className="flex-1 relative">
             <Whiteboard 
                 socket={socketRef.current} 
-                roomId={meetingId} 
-                canvasRef={whiteboardRef} 
+                roomId={meetingId || ""} 
+                canvasRef={whiteboardRef}
             />
         </div>
         <div className="absolute top-4 left-4 bg-zinc-900/80 text-white px-3 py-1 rounded-full text-xs pointer-events-none">

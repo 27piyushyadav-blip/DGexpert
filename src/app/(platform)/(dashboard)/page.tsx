@@ -1,4 +1,5 @@
-import { getDashboardContext } from "@/actions/dashboard";
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -6,20 +7,28 @@ import {
   XCircle, Clock, ShieldCheck, DollarSign, CalendarCheck, Users 
 } from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation"; // ✅ REQUIRED FIX
 import VisitingCard from "@/components/dashboard/VisitingCard";
+import { useEffect, useState } from "react";
 
-export const dynamic = "force-dynamic";
-
-// Mock Data (temporary)
+// Backend removed - using mock data
 const mockStats = [
   { name: "Total Revenue", value: "$0.00", icon: DollarSign, color: "text-emerald-500" },
   { name: "Appointments", value: "0", icon: CalendarCheck, color: "text-violet-500" },
   { name: "Active Clients", value: "0", icon: Users, color: "text-sky-500" },
 ];
 
-export default async function DashboardPage() {
-  const data = await getDashboardContext();
+export default function DashboardPage() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    // Mock data - backend removed
+    setData({
+      status: "LIVE",
+      onboarding: null,
+      rejectionReason: null,
+      profile: { hasPendingUpdates: false },
+    });
+  }, []);
 
   if (!data) {
     return (
@@ -30,13 +39,6 @@ export default async function DashboardPage() {
   }
 
   const { status, onboarding, rejectionReason, profile } = data;
-
-  /* ---------------------------------------------------------
-   * ⭐ NEW FIX → Handle New User (First Login)
-   * --------------------------------------------------------- */
-  if (status === "NEW_USER") {
-    redirect("/profile"); // Prevent crashes & guide user properly
-  }
 
   /* ---------------------------------------------------------
    * STATE 1: REJECTED

@@ -1,14 +1,17 @@
-import { getExpertAppointments } from "@/actions/appointments";
+"use client";
+
 import AppointmentsClient from "./client";
+import { useEffect, useState } from "react";
 
-export const dynamic = "force-dynamic";
+// Backend removed - metadata removed for client component
 
-export const metadata = {
-  title: "Appointments | Dashboard",
-};
+export default function AppointmentsPage() {
+  const [data, setData] = useState([]);
 
-export default async function AppointmentsPage() {
-  const { data } = await getExpertAppointments();
+  useEffect(() => {
+    // Backend removed - using mock data
+    setData([]);
+  }, []);
 
   return <AppointmentsClient initialData={data} />;
 }

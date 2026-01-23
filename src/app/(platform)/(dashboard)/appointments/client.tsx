@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { updateAppointmentStatus } from "@/actions/appointments";
+// Backend removed - actions removed
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,16 +51,11 @@ export default function AppointmentsClient({ initialData }) {
   const handleStatusUpdate = async (id, status) => {
     setLoadingId(id);
 
-    const res = await updateAppointmentStatus(id, status);
-
-    if (res?.success) {
-      toast.success(res.message);
-      setAppointments(prev =>
-        prev.map(a => (a._id === id ? { ...a, status } : a))
-      );
-    } else {
-      toast.error(res?.message || "Something went wrong");
-    }
+    // Backend removed - UI-only update
+    toast.success("Status updated");
+    setAppointments(prev =>
+      prev.map(a => (a._id === id ? { ...a, status } : a))
+    );
 
     setLoadingId(null);
   };
@@ -107,7 +102,7 @@ export default function AppointmentsClient({ initialData }) {
           {/* DETAILS */}
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-2">
-              <Badge className="gap-1 bg-indigo-50 text-indigo-700 border-indigo-100">
+              <Badge variant="secondary" className="gap-1 bg-indigo-50 text-indigo-700 border-indigo-100">
                 {isVideo ? (
                   <Video className="w-3 h-3" />
                 ) : (
@@ -190,12 +185,14 @@ export default function AppointmentsClient({ initialData }) {
                     </Button>
                   </DropdownMenuTrigger>
 
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem
                       disabled={loadingId === appt._id}
                       onClick={() =>
                         handleStatusUpdate(appt._id, "completed")
                       }
+                      className="cursor-pointer"
+                      inset={false}
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2 text-green-600" />
                       Mark Completed
@@ -206,7 +203,8 @@ export default function AppointmentsClient({ initialData }) {
                       onClick={() =>
                         handleStatusUpdate(appt._id, "cancelled")
                       }
-                      className="text-red-600"
+                      className="text-red-600 cursor-pointer"
+                      inset={false}
                     >
                       <XCircle className="w-4 h-4 mr-2" />
                       Cancel Session
@@ -233,12 +231,12 @@ export default function AppointmentsClient({ initialData }) {
         </p>
       </div>
 
-      <Tabs defaultValue="upcoming">
+      <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="bg-zinc-100 p-1 rounded-lg mb-6">
-          <TabsTrigger value="upcoming">
+          <TabsTrigger value="upcoming" className="data-[state=active]:bg-white">
             Upcoming ({upcoming.length})
           </TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="history" className="data-[state=active]:bg-white">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="space-y-4">

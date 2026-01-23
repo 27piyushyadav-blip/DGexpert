@@ -23,7 +23,26 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function ServicesSection({ services, setServices, errors = {} }) {
+type ServiceItem = {
+  name: string;
+  duration: number;
+  videoPrice: number | "";
+  clinicPrice: number | "";
+  currency: string;
+  description: string;
+};
+
+type FieldErrors = Record<string, string[] | string | undefined>;
+
+type ServicesSectionProps = {
+  services: ServiceItem[];
+  setServices:
+    | React.Dispatch<React.SetStateAction<ServiceItem[]>>
+    | ((next: ServiceItem[]) => void);
+  errors?: FieldErrors;
+};
+
+export function ServicesSection({ services, setServices, errors = {} }: ServicesSectionProps) {
   const addService = () => {
     setServices([
       ...services,
@@ -38,18 +57,22 @@ export function ServicesSection({ services, setServices, errors = {} }) {
     ]);
   };
 
-  const removeService = (index) => {
+  const removeService = (index: number) => {
     setServices(services.filter((_, i) => i !== index));
   };
 
-  const updateService = (index, field, value) => {
+  const updateService = <K extends keyof ServiceItem>(
+    index: number,
+    field: K,
+    value: string
+  ) => {
     const updated = [...services];
     if (!updated[index]) return;
 
-    if (["duration", "videoPrice", "clinicPrice"].includes(field)) {
-      updated[index][field] = value === "" ? "" : Number(value);
+    if (field === "duration" || field === "videoPrice" || field === "clinicPrice") {
+      (updated[index][field] as ServiceItem[K]) = (value === "" ? "" : Number(value)) as ServiceItem[K];
     } else {
-      updated[index][field] = value;
+      (updated[index][field] as ServiceItem[K]) = value as ServiceItem[K];
     }
 
     setServices(updated);

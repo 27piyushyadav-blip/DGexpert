@@ -1,34 +1,37 @@
+"use client";
+
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { UserNav } from "@/components/dashboard/user-nav";
 import { NotificationsNav } from "@/components/dashboard/notifications-nav";
 import { MobileSidebar } from "@/components/dashboard/mobile-sidebar";
-import { Brain, MessageSquare } from "lucide-react"; // [!code ++]
+import { Brain, MessageSquare } from "lucide-react";
 import UnreadChatIndicator from "@/components/chat/UnreadChatIndicator";
-import { getDashboardContext } from "@/actions/dashboard";
+import { useEffect, useState } from "react";
 
-import connectDB from "@/lib/db";
-import User from "@/models/User";
+// Backend removed - component now uses mock data
+export default function Header() {
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [totalUnread, setTotalUnread] = useState(0);
+  const [isLive, setIsLive] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; description: string; type?: string; link?: string }>>([]);
 
-export default async function Header() {
-  const session = await getServerSession(authOptions);
-
-  // Fetch fresh user from DB
-  await connectDB();
-  let user = session?.user?.id
-    ? await User.findById(session.user.id)
-      .select("name email image username")
-      .lean()
-    : session?.user;
-
-  if (user) {
-    user = JSON.parse(JSON.stringify(user));
-  }
-
-  const data = await getDashboardContext();
-  const totalUnread = data?.conversations?.reduce((acc, conv) => acc + (conv.expertUnreadCount || 0), 0) || 0;
-  const isLive = data?.profile?.isVetted;
+  useEffect(() => {
+    // Mock user data from localStorage
+    const authUser = localStorage.getItem("auth_user");
+    if (authUser) {
+      try {
+        setUser(JSON.parse(authUser) as { name: string; email: string });
+      } catch (e) {
+        setUser({ name: "Demo User", email: "demo@example.com" });
+      }
+    } else {
+      setUser({ name: "Demo User", email: "demo@example.com" });
+    }
+    // Mock data
+    setTotalUnread(0);
+    setIsLive(false);
+    setNotifications([]);
+  }, []);
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b border-zinc-200 bg-white/80 backdrop-blur-md sticky top-0 z-40 h-16 w-full">
@@ -84,7 +87,7 @@ export default async function Header() {
           <UnreadChatIndicator initialCount={totalUnread} />
         </Link>
 
-        <NotificationsNav data={data?.notifications || []} />
+        <NotificationsNav data={notifications} />
         <UserNav user={user} />
       </div>
     </header>

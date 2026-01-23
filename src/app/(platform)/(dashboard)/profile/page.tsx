@@ -1,24 +1,49 @@
-import { getProfile } from "@/actions/profile";
+"use client";
+
 import ProfileForm from "@/components/dashboard/profile-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { XCircle, Eye } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-export const metadata = {
-  title: "Edit Profile | Expert Dashboard",
-  description: "Manage your professional identity, services, and availability.",
+// Backend removed - metadata removed for client component
+
+type ProfileData = {
+  user: {
+    name: string;
+    email: string;
+    username: string;
+    image: string;
+  };
+  isVetted: boolean;
+  hasPendingUpdates: boolean;
+  rejectionReason: string | null;
+  draft: Record<string, any>;
 };
 
-export default async function ProfilePage({ searchParams }) {
+export default function ProfilePage() {
+  const searchParams = useSearchParams();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  // ⭐ Next.js 15 FIX — searchParams is now a Promise
-  const resolvedParams = await searchParams;
+  useEffect(() => {
+    // Backend removed - using mock profile data
+    setProfile({
+      user: {
+        name: "Demo User",
+        email: "demo@example.com",
+        username: "demo-user",
+        image: "",
+      },
+      isVetted: false,
+      hasPendingUpdates: false,
+      rejectionReason: null,
+      draft: {},
+    });
+  }, []);
 
-  // 1. Fetch Profile
-  const profile = await getProfile();
-
-  // 2. Determine Active Tab (SSR-safe)
+  // 2. Determine Active Tab
   const validTabs = [
     "identity",
     "professional",
@@ -28,9 +53,10 @@ export default async function ProfilePage({ searchParams }) {
     "settings"
   ];
 
+  const tabParam = searchParams?.get("tab") || null;
   const activeTab =
-    validTabs.includes(resolvedParams?.tab)
-      ? resolvedParams.tab
+    (tabParam && validTabs.includes(tabParam))
+      ? tabParam
       : "identity";
 
   if (!profile) {

@@ -8,9 +8,44 @@ import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getMessages, getConversationById } from "@/actions/chat";
-import { initSocket } from "@/lib/socket-client";
-import { useUploadThing } from "@/lib/uploadthing";
+// Backend removed - actions and socket removed
+// Backend removed - uploadthing removed
+
+type ChatUser = {
+  _id: string;
+  name?: string;
+  profilePicture?: string;
+  isOnline?: boolean;
+  lastSeen?: string | Date | null;
+};
+
+type Conversation = {
+  _id: string;
+  otherUser?: ChatUser;
+  lastMessageAt?: string | Date;
+  lastMessage?: string;
+  lastMessageSender?: string;
+  lastMessageStatus?: "sending" | "sent";
+  expertUnreadCount?: number;
+  userUnreadCount?: number;
+  isTyping?: boolean;
+};
+
+type Message = {
+  _id: string;
+  conversationId: string | null;
+  sender: string;
+  senderModel?: string;
+  content: string;
+  contentType?: "text" | "image" | "pdf" | "audio";
+  replyTo?: any;
+  createdAt: string;
+  readBy: string[];
+  status?: "sending" | "sent";
+  isDeleted?: boolean;
+};
+
+type MediaViewer = { src: string; type: "image" | "pdf" } | null;
 
 // --- Icons ---
 const SendIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>);
@@ -85,34 +120,37 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-  const emojiPickerRef = useRef(null);
-  const emojiButtonRef = useRef(null);
-  const inputRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isInitialLoadPhase = useRef(true);
   const initialScrollDone = useRef(false);
 
   // ✅ ADD THIS
-  const activeClientIdRef = useRef(null);
+  const activeClientIdRef = useRef<string | null>(null);
 
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const mimeTypeRef = useRef("audio/webm");
-  const typingTimeoutRef = useRef(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [socket, setSocket] = useState(null);
+  // Backend removed - socket removed
+  const socket = null;
 
-  const sortedInitial = [...initialConversations].sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
-  const [conversations, setConversations] = useState(sortedInitial);
+  const sortedInitial: Conversation[] = [...(initialConversations as Conversation[])].sort(
+    (a, b) => new Date(b.lastMessageAt as any).getTime() - new Date(a.lastMessageAt as any).getTime()
+  );
+  const [conversations, setConversations] = useState<Conversation[]>(sortedInitial);
 
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const selectedConversationId = searchParams.get("id");
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isMessagesPending, startMessagesTransition] = useTransition();
   const [isMounted, setIsMounted] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -122,12 +160,18 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const [currentStickyDate, setCurrentStickyDate] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const recordingIntervalRef = useRef(null);
-  const [viewingMedia, setViewingMedia] = useState(null);
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [viewingMedia, setViewingMedia] = useState<MediaViewer>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [remoteStatus, setRemoteStatus] = useState({ isOnline: false, lastSeen: null });
+  const [remoteStatus, setRemoteStatus] = useState<{ isOnline: boolean; lastSeen: string | Date | null }>({
+    isOnline: false,
+    lastSeen: null,
+  });
 
-  const { startUpload } = useUploadThing("chatAttachment");
+  // Backend removed - mock upload function
+  const startUpload = async (files: File[]) => {
+    return files.map((file) => ({ url: URL.createObjectURL(file), name: file.name }));
+  };
 
   const selectedConversation = conversations.find(
     (c) => c._id === selectedConversationId
@@ -140,14 +184,14 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
 
   // Inside ChatClient component (around line 120)
-  const sendSoundRef = useRef(null);
-  const receiveSoundRef = useRef(null);
+  const sendSoundRef = useRef<HTMLAudioElement | null>(null);
+  const receiveSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     sendSoundRef.current = new Audio("/sounds/send.mp3");
     receiveSoundRef.current = new Audio("/sounds/receive.mp3");
-    sendSoundRef.current.volume = 0.5;
-    receiveSoundRef.current.volume = 0.5;
+    if (sendSoundRef.current) sendSoundRef.current.volume = 0.5;
+    if (receiveSoundRef.current) receiveSoundRef.current.volume = 0.5;
   }, []);
 
 
@@ -160,8 +204,8 @@ export default function ChatClient({ initialConversations, currentUser }) {
   useEffect(() => {
     if (remoteUser) {
       setRemoteStatus({
-        isOnline: remoteUser.isOnline,
-        lastSeen: remoteUser.lastSeen
+        isOnline: !!remoteUser.isOnline,
+        lastSeen: remoteUser.lastSeen ?? null,
       });
     }
   }, [remoteUser?._id]);
@@ -171,18 +215,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
     router.refresh();
   }, [router]);
 
-  // --- SOCKET CONNECTION ---
-  // [!code change] Fix variable shadowing
-  useEffect(() => {
-    // Use the global singleton instead of creating a new 'io()' connection
-    const newSocket = initSocket(currentUser.id);
-    setSocket(newSocket);
-  
-    // Do NOT disconnect here, as it will kill the Header's socket too
-    return () => {
-      console.log("🧹 Leaving Chat Page");
-    };
-  }, [currentUser.id]);
+  // Backend removed - socket connection removed
 
 
 
@@ -220,7 +253,9 @@ export default function ChatClient({ initialConversations, currentUser }) {
         }
         return c;
       });
-      return newConversations.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+      return newConversations.sort(
+        (a, b) => new Date(b.lastMessageAt as any).getTime() - new Date(a.lastMessageAt as any).getTime()
+      );
     });
   }, [selectedConversationId]); // 👈 CRITICAL: Must depend on selectedConversationId
 
@@ -232,12 +267,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    if (!socket || !selectedConversationId) return;
-    socket.emit("typing", { conversationId: selectedConversationId, typerId: currentUser.id });
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("stopTyping", { conversationId: selectedConversationId, typerId: currentUser.id });
-    }, 2000);
+    // Backend removed - typing indicators removed
   };
 
   const onUserStatusChanged = useCallback(({ userId, isOnline, lastSeen }) => {
@@ -254,7 +284,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   // ✅ Sidebar preview ONLY (no unread logic here)
   const onReceiveDirectMessage = useCallback(
-    async (message) => {
+    async (message: any) => {
       let previewText = message.content;
       if (message.contentType === "audio") previewText = "🎤 Audio Message";
       else if (message.contentType === "image") previewText = "📷 Image";
@@ -264,7 +294,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
         receiveSoundRef.current?.play().catch(e => console.log("Audio blocked", e));
       }
   
-      const updates = {
+      const updates: any = {
         conversationId: message.conversationId,
         lastMessage: previewText,
         lastMessageAt: message.createdAt,
@@ -277,9 +307,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
       if (exists) {
         updateChatList(updates);
       } else {
-        // Handle brand new conversation
-        const convo = await getConversationById(message.conversationId);
-        if (convo) setConversations(old => [convo, ...old]);
+        // Backend removed - new conversation handling removed
       }
     },
     [currentUser.id, updateChatList, conversations] // Added conversations to dependencies
@@ -297,32 +325,32 @@ export default function ChatClient({ initialConversations, currentUser }) {
     setConversations(prev => prev.map(c => c._id === conversationId ? { ...c, isTyping: false } : c));
   }, [selectedConversationId, currentUser.id]);
 
-  const addOptimisticMessage = (content, contentType = "text") => {
+  const addOptimisticMessage = (content: string, contentType: Message["contentType"] = "text") => {
     const tempId = "temp-" + Date.now();
 
-    const optimisticMsg = {
+    const optimisticMsg: Message = {
       _id: tempId,
       conversationId: selectedConversationId,
-      sender: currentUser.id,
+      sender: String(currentUser.id),
       senderModel: "Expert", // ✅ FIXED
       content,
       contentType,
       replyTo: replyingTo,
       createdAt: new Date().toISOString(),
-      readBy: [currentUser.id],
+      readBy: [String(currentUser.id)],
       status: "sending",
     };
 
-    setMessages(prev => [...prev, optimisticMsg]);
+    setMessages((prev) => [...prev, optimisticMsg]);
     setReplyingTo(null);
     return optimisticMsg;
   };
 
 
-  const handleFileSelect = async (e) => {
+  const handleFileSelect = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    let contentType = "text";
+    let contentType: Message["contentType"] = "text";
     if (file.type.startsWith("image/")) contentType = "image";
     else if (file.type === "application/pdf") contentType = "pdf";
     else { alert("Only images and PDFs are supported."); return; }
@@ -440,7 +468,10 @@ export default function ChatClient({ initialConversations, currentUser }) {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop(); // triggers onstop
       setIsRecording(false);
-      clearInterval(recordingIntervalRef.current);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
     }
   };
 
@@ -457,7 +488,10 @@ export default function ChatClient({ initialConversations, currentUser }) {
       }
 
       setIsRecording(false);
-      clearInterval(recordingIntervalRef.current);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
       setRecordingTime(0);
       audioChunksRef.current = [];
     }
@@ -465,47 +499,33 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
 
   const sendMessageSocket = (content, contentType = "text") => {
-    if (!selectedConversationId || !socket || !remoteUser?._id) return;
+    if (!selectedConversationId || !remoteUser?._id) return;
 
     // ✅ Play Send Sound
     sendSoundRef.current?.play().catch(e => console.log("Audio play blocked", e));
 
-    socket.emit("send_message", {
-      conversationId: selectedConversationId,
-      senderId: currentUser.id,
-      receiverId: remoteUser._id,
-      content,
-      contentType, // ✅ FIXED: standardized key
-      senderModel: "Expert",
-      replyTo: replyingTo ? replyingTo._id : null,
-    });
+    // Backend removed - message sending removed
   };
 
 
 
   const handleSendMessage = (e) => { e.preventDefault(); if (!newMessage.trim()) return; addOptimisticMessage(newMessage, "text"); sendMessageSocket(newMessage, "text"); setNewMessage(""); inputRef.current?.focus(); };
   const handleDeleteMessage = (messageId) => {
-    if (!socket) return;
-
     // ✅ Optimistic delete (do NOT remove message)
     setMessages(prev =>
       prev.map(m =>
         m._id === messageId
           ? {
-            ...m,
-            isDeleted: true,
-            content: "🚫 This message was deleted",
-            contentType: "text",
-          }
+              ...m,
+              isDeleted: true,
+              content: "🚫 This message was deleted",
+              contentType: "text",
+            }
           : m
       )
     );
 
-    socket.emit("deleteMessage", {
-      conversationId: selectedConversationId,
-      messageId,
-    });
-
+    // Backend removed - delete message removed
     setDeleteConfirmId(null);
   };
 
@@ -538,13 +558,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
           return [...prev, message];
         });
   
-        // Instantly mark as read if chat is open
-        if (message.sender !== currentUser.id && socket) {
-          socket.emit("markAsRead", {
-            conversationId: selectedConversationId,
-            userId: currentUser.id,
-          });
-        }
+        // Backend removed - mark as read removed
         
         setIsTyping(false); // Clear typing indicator for active chat
       }
@@ -555,7 +569,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
       else if (message.contentType === "image") previewText = "📷 Image";
       else if (message.contentType === "pdf") previewText = "📄 Document";
   
-      const updates = {
+      const updates: any = {
         conversationId: message.conversationId,
         lastMessage: previewText,
         lastMessageAt: message.createdAt,
@@ -644,12 +658,8 @@ export default function ChatClient({ initialConversations, currentUser }) {
   
     setTimeout(() => { isInitialLoadPhase.current = false; }, 2000);
   
-    // 1. Join and sync status
-    socket.emit("join_room", selectedConversationId);
-    if (remoteUser?._id) {
-      socket.emit("getUserPresence", { userId: remoteUser._id });
-    }
-  
+    // Backend removed - socket calls removed
+    
     // 2. IMMEDIATELY clear unread count in local state
     setConversations(prev =>
       prev.map(c =>
@@ -661,82 +671,45 @@ export default function ChatClient({ initialConversations, currentUser }) {
   
     setIsTyping(false);
   
-    // 3. Update DB via socket
-    socket.emit("markAsRead", {
-      conversationId: selectedConversationId,
-      userId: currentUser.id,
-    });
-
-    router.refresh();
-  
-    // 4. Fetch ONLY messages (remove getConversationById fetch here)
+    // Backend removed - fetch messages removed
     startMessagesTransition(async () => {
       setMessages([]);
-      const history = await getMessages(selectedConversationId);
-      setMessages(history);
+      // Mock empty messages
+      setMessages([]);
     });
   
   }, [selectedConversationId, currentUser.id, socket, remoteUser?._id]);
 
 
 
-  useEffect(() => {
-    if (!socket) return;
-    socket.on("receive_message", onReceiveMessage);
-    socket.on("messageDeleted", onMessageDeleted);
-    socket.on("typing", onTyping);
-    socket.on("stopTyping", onStopTyping);
-    socket.on("userStatusChanged", onUserStatusChanged);
-    socket.on("messagesRead", onMessagesRead);
-    socket.on("conversationUpdated", onConversationUpdated);
-    return () => {
-      socket.off("receive_message", onReceiveMessage);
-      socket.off("messageDeleted", onMessageDeleted);
-      socket.off("typing", onTyping);
-      socket.off("stopTyping", onStopTyping);
-      socket.off("userStatusChanged", onUserStatusChanged);
-      socket.off("messagesRead", onMessagesRead);
-      socket.off("conversationUpdated", onConversationUpdated);
-    };
-  }, [selectedConversationId, socket, onReceiveMessage, onTyping, onStopTyping, onUserStatusChanged, onMessagesRead, onConversationUpdated]);
+  // Backend removed - socket event listeners removed
 
-  useEffect(() => {
-    if (!socket) return;
+  // Backend removed - presence updates removed
 
-    const onPresence = ({ userId, isOnline, lastSeen }) => {
-      if (activeClientIdRef.current === userId) {
-        setRemoteStatus({ isOnline, lastSeen });
-      }
-    };
-
-    socket.on("userPresence", onPresence);
-
-    return () => {
-      socket.off("userPresence", onPresence);
-    };
-  }, [socket]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.on("receiveDirectMessage", onReceiveDirectMessage);
-
-    return () => {
-      socket.off("receiveDirectMessage", onReceiveDirectMessage);
-    };
-  }, [socket, onReceiveDirectMessage]);
+  // Backend removed - direct message listener removed
 
 
   useLayoutEffect(() => { if (messages.length > 0 && messagesContainerRef.current && !isMessagesPending) { const container = messagesContainerRef.current; if (!initialScrollDone.current) { container.scrollTop = container.scrollHeight; initialScrollDone.current = true; setChatOpacity(1); } else { const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150; if (isNearBottom) { container.scrollTo({ top: container.scrollHeight, behavior: "auto" }); } } } else if (messages.length === 0 && !isMessagesPending) { setChatOpacity(1); } }, [messages, isMessagesPending]);
-  useEffect(() => { const container = messagesContainerRef.current; if (!container) return; const handleScroll = () => { const { scrollTop, scrollHeight, clientHeight } = container; const isNearBottom = scrollHeight - scrollTop - clientHeight < 100; setShowScrollBottomButton(!isNearBottom); const dateHeaders = container.querySelectorAll('[data-date-header]'); let currentDate = ""; dateHeaders.forEach((header) => { const rect = header.getBoundingClientRect(); const containerRect = container.getBoundingClientRect(); if (rect.top <= containerRect.top + 60) currentDate = header.getAttribute('data-date-header'); }); setCurrentStickyDate(currentDate); }; container.addEventListener('scroll', handleScroll); return () => container.removeEventListener('scroll', handleScroll); }, [isMessagesPending]);
+  useEffect(() => { const container = messagesContainerRef.current; if (!container) return; const handleScroll = () => { const { scrollTop, scrollHeight, clientHeight } = container; const isNearBottom = scrollHeight - scrollTop - clientHeight < 100; setShowScrollBottomButton(!isNearBottom); const dateHeaders = container.querySelectorAll('[data-date-header]'); let currentDate = ""; dateHeaders.forEach((header) => { const rect = (header as HTMLElement).getBoundingClientRect(); const containerRect = container.getBoundingClientRect(); if (rect.top <= containerRect.top + 60) currentDate = header.getAttribute('data-date-header') ?? ""; }); setCurrentStickyDate(currentDate); }; container.addEventListener('scroll', handleScroll); return () => container.removeEventListener('scroll', handleScroll); }, [isMessagesPending]);
   const handleImageLoad = useCallback(() => { const container = messagesContainerRef.current; if (!container) return; if (isInitialLoadPhase.current) { container.scrollTo({ top: container.scrollHeight, behavior: "auto" }); } else { const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 300; if (isNearBottom) { container.scrollTo({ top: container.scrollHeight, behavior: "auto" }); } } }, []);
-  useEffect(() => { const handleClickOutside = (event) => { if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target) && emojiButtonRef.current && !emojiButtonRef.current.contains(event.target)) { setShowEmojiPicker(false); } }; if (showEmojiPicker) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); } }, [showEmojiPicker]);
-  const handleEmojiSelect = (emoji) => { const input = inputRef.current; if (input) { const start = input.selectionStart; const end = input.selectionEnd; const text = newMessage; const newText = text.substring(0, start) + emoji + text.substring(end); setNewMessage(newText); requestAnimationFrame(() => { input.selectionStart = input.selectionEnd = start + emoji.length; input.focus(); }); } else { setNewMessage(prev => prev + emoji); } };
+  useEffect(() => { const handleClickOutside = (event: MouseEvent) => { const target = event.target as Node | null; if (emojiPickerRef.current && target && !emojiPickerRef.current.contains(target) && emojiButtonRef.current && !emojiButtonRef.current.contains(target)) { setShowEmojiPicker(false); } }; if (showEmojiPicker) { document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside); } }, [showEmojiPicker]);
+  const handleEmojiSelect = (emoji: string) => { const input = inputRef.current; if (input) { const start = input.selectionStart ?? 0; const end = input.selectionEnd ?? 0; const text = newMessage; const newText = text.substring(0, start) + emoji + text.substring(end); setNewMessage(newText); requestAnimationFrame(() => { input.selectionStart = input.selectionEnd = start + emoji.length; input.focus(); }); } else { setNewMessage(prev => prev + emoji); } };
   const scrollToMessage = (messageId) => { const messageEl = document.getElementById(`message-${messageId}`); if (messageEl) { messagesContainerRef.current?.scrollTo({ top: messageEl.offsetTop - (messagesContainerRef.current.offsetTop || 0) - 20, behavior: "auto" }); messageEl.classList.add("animate-flash"); setTimeout(() => messageEl.classList.remove("animate-flash"), 1000); } };
   const formatTime = (seconds) => { if (isNaN(seconds)) return "0:00"; const mins = Math.floor(seconds / 60); const secs = seconds % 60; return `${mins}:${secs.toString().padStart(2, '0')}`; };
-  const handleViewMedia = (src, type) => { if (type === 'pdf') window.open(src, '_blank'); else setViewingMedia({ src, type }); };
-  const filteredEmojis = emojiSearch ? Object.values(EMOJI_CATEGORIES).flat().filter(() => true) : EMOJI_CATEGORIES;
-  const groupedMessages = useMemo(() => { const groups = {}; messages.forEach(msg => { const date = formatDateHeader(msg.createdAt); if (!groups[date]) groups[date] = []; groups[date].push(msg); }); return groups; }, [messages]);
+  const handleViewMedia = (src: string, type: "image" | "pdf") => {
+    if (type === "pdf") window.open(src, "_blank");
+    else setViewingMedia({ src, type });
+  };
+  const filteredEmojis: any = emojiSearch ? Object.values(EMOJI_CATEGORIES).flat().filter(() => true) : EMOJI_CATEGORIES;
+  const groupedMessages = useMemo<Record<string, Message[]>>(() => {
+    const groups: Record<string, Message[]> = {};
+    messages.forEach((msg) => {
+      const date = formatDateHeader(msg.createdAt);
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(msg);
+    });
+    return groups;
+  }, [messages]);
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] bg-white relative">
@@ -749,10 +722,10 @@ export default function ChatClient({ initialConversations, currentUser }) {
       <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
         {selectedConversation ? (
           <>
-            <div className="flex-shrink-0 flex items-center gap-4 px-6 py-4 border-b border-zinc-200 bg-white shadow-sm z-20"><ProfileImage src={remoteUser?.profilePicture} name={remoteUser?.name} sizeClass="h-12 w-12" /><div className="flex-1"><h3 className="font-semibold text-lg text-zinc-900">{remoteUser?.name}</h3><p className="text-sm text-zinc-500">{isTyping ? <span className="text-indigo-600 font-medium animate-pulse">typing...</span> : formatLastSeen(remoteStatus.lastSeen, remoteStatus.isOnline)}</p></div></div>
+            <div className="flex-shrink-0 flex items-center gap-4 px-6 py-4 border-b border-zinc-200 bg-white shadow-sm z-20"><ProfileImage src={remoteUser?.profilePicture} name={remoteUser?.name} sizeClass="h-12 w-12" className="" /><div className="flex-1"><h3 className="font-semibold text-lg text-zinc-900">{remoteUser?.name}</h3><p className="text-sm text-zinc-500">{isTyping ? <span className="text-indigo-600 font-medium animate-pulse">typing...</span> : formatLastSeen(remoteStatus.lastSeen, remoteStatus.isOnline)}</p></div></div>
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 relative" style={{ opacity: isMessagesPending ? 1 : chatOpacity }}>
               {isMessagesPending ? (<div className="flex flex-col h-full items-center justify-center"><Loader2Icon className="h-10 w-10 animate-spin text-indigo-600 mx-auto mb-4" /><p className="text-zinc-500">Loading messages...</p></div>) : (
-                <div className="pb-2">{Object.entries(groupedMessages).map(([date, msgs]) => (<div key={date} className="relative mb-6"><div className="sticky top-2 z-10 flex justify-center my-4 pointer-events-none"><span className="bg-white/90 backdrop-blur-sm text-zinc-600 px-4 py-1.5 rounded-full text-xs font-medium shadow-md border border-zinc-100">{date}</span></div><div className="space-y-1">{msgs.map((msg) => { const prevMsg = msgs[msgs.indexOf(msg) - 1]; const nextMsg = msgs[msgs.indexOf(msg) + 1]; const isSender = msg.sender === currentUser.id; const isFirstInGroup = !prevMsg || prevMsg.sender !== msg.sender; const isLastInGroup = !nextMsg || nextMsg.sender !== msg.sender; return (<MessageBubble key={msg._id} message={msg} isSender={isSender} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup} onReplyClick={() => setReplyingTo(msg)} onReplyView={scrollToMessage} onDeleteClick={() => setDeleteConfirmId(msg._id)} showDeleteConfirm={deleteConfirmId === msg._id} onConfirmDelete={() => handleDeleteMessage(msg._id)} onCancelDelete={() => setDeleteConfirmId(null)} isMounted={isMounted} currentUserId={currentUser.id} onViewMedia={handleViewMedia} onImageLoad={handleImageLoad} />); })}</div></div>))}</div>
+                <div className="pb-2">{(Object.entries(groupedMessages) as [string, Message[]][]).map(([date, msgs]) => (<div key={date} className="relative mb-6"><div className="sticky top-2 z-10 flex justify-center my-4 pointer-events-none"><span className="bg-white/90 backdrop-blur-sm text-zinc-600 px-4 py-1.5 rounded-full text-xs font-medium shadow-md border border-zinc-100">{date}</span></div><div className="space-y-1">{msgs.map((msg) => { const prevMsg = msgs[msgs.indexOf(msg) - 1]; const nextMsg = msgs[msgs.indexOf(msg) + 1]; const isSender = msg.sender === String(currentUser.id); const isFirstInGroup = !prevMsg || prevMsg.sender !== msg.sender; const isLastInGroup = !nextMsg || nextMsg.sender !== msg.sender; return (<MessageBubble key={msg._id} message={msg} isSender={isSender} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup} onReplyClick={() => setReplyingTo(msg)} onReplyView={scrollToMessage} onDeleteClick={() => setDeleteConfirmId(msg._id)} showDeleteConfirm={deleteConfirmId === msg._id} onConfirmDelete={() => handleDeleteMessage(msg._id)} onCancelDelete={() => setDeleteConfirmId(null)} isMounted={isMounted} currentUserId={String(currentUser.id)} onViewMedia={handleViewMedia} onImageLoad={handleImageLoad} />); })}</div></div>))}</div>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -764,7 +737,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
               ) : (
                 <form onSubmit={handleSendMessage} className="flex gap-2 items-end relative">
                   <div className="flex gap-1">
-                    <div className="relative"><Button ref={emojiButtonRef} type="button" size="icon" variant="ghost" onMouseDown={(e) => e.preventDefault()} className={cn("text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 shrink-0", showEmojiPicker && "bg-zinc-100 text-indigo-600")} onClick={() => setShowEmojiPicker(!showEmojiPicker)}><SmileIcon /></Button>{showEmojiPicker && (<div ref={emojiPickerRef} className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-zinc-200 rounded-lg shadow-lg z-50"><div className="p-3 border-b border-zinc-200 flex items-center"><div className="relative flex-1"><SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><Input type="text" placeholder="Search emoji..." value={emojiSearch} onChange={(e) => setEmojiSearch(e.target.value)} className="w-full pl-10 pr-3 py-2 bg-white border-zinc-200 rounded-md text-sm h-9" onMouseDown={(e) => e.stopPropagation()} /></div></div><div className="max-h-80 overflow-y-auto p-2">{Object.entries(filteredEmojis).map(([category, emojis]) => (<div key={category} className="mb-2"><h4 className="text-xs font-semibold text-zinc-500 mb-2 px-2 uppercase">{category}</h4><div className="grid grid-cols-8 gap-0.5">{emojis.map((emoji, idx) => (<button key={idx} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleEmojiSelect(emoji)} className="flex items-center justify-center w-full h-10 text-2xl hover:bg-zinc-100 rounded transition-colors">{emoji}</button>))}</div></div>))}</div></div>)}</div>
+                    <div className="relative"><Button ref={emojiButtonRef} type="button" size="icon" variant="ghost" onMouseDown={(e) => e.preventDefault()} className={cn("text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 shrink-0", showEmojiPicker && "bg-zinc-100 text-indigo-600")} onClick={() => setShowEmojiPicker(!showEmojiPicker)}><SmileIcon /></Button>{showEmojiPicker && (<div ref={emojiPickerRef} className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-zinc-200 rounded-lg shadow-lg z-50"><div className="p-3 border-b border-zinc-200 flex items-center"><div className="relative flex-1"><SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><Input type="text" placeholder="Search emoji..." value={emojiSearch} onChange={(e) => setEmojiSearch(e.target.value)} className="w-full pl-10 pr-3 py-2 bg-white border-zinc-200 rounded-md text-sm h-9" onMouseDown={(e) => e.stopPropagation()} /></div></div><div className="max-h-80 overflow-y-auto p-2">{Object.entries(filteredEmojis as any).map(([category, emojis]: [string, any]) => (<div key={category} className="mb-2"><h4 className="text-xs font-semibold text-zinc-500 mb-2 px-2 uppercase">{category}</h4><div className="grid grid-cols-8 gap-0.5">{(emojis as any[]).map((emoji, idx) => (<button key={idx} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => handleEmojiSelect(emoji)} className="flex items-center justify-center w-full h-10 text-2xl hover:bg-zinc-100 rounded transition-colors">{emoji}</button>))}</div></div>))}</div></div>)}</div>
                     <Button type="button" size="icon" variant="ghost" className="text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 shrink-0" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()}><AttachIcon /></Button>
                   </div>
                   <Input ref={inputRef} value={newMessage} onChange={handleTyping} placeholder="Type a message..." className="flex-1 bg-zinc-50 border-zinc-200 resize-none focus:bg-white" onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
@@ -783,10 +756,10 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
 // --- UTILITY COMPONENTS (Inlined) ---
 
-function SmartImage({ src, alt, onClick, onLoad }) { const [displaySrc, setDisplaySrc] = useState(src); useEffect(() => { if (src !== displaySrc) { const img = new Image(); img.src = src; img.onload = () => { setDisplaySrc(src); }; } }, [src, displaySrc]); return (<img src={displaySrc} alt={alt} className="max-w-full h-auto object-cover max-h-64" onClick={onClick} onLoad={onLoad} />); }
+function SmartImage({ src, alt, onClick, onLoad }: { src: any; alt: string; onClick?: any; onLoad?: any }) { const [displaySrc, setDisplaySrc] = useState(src); useEffect(() => { if (src !== displaySrc) { const img = new Image(); img.src = src; img.onload = () => { setDisplaySrc(src); }; } }, [src, displaySrc]); return (<img src={displaySrc} alt={alt} className="max-w-full h-auto object-cover max-h-64" onClick={onClick} onLoad={onLoad} />); }
 function MediaViewerModal({ src, type, onClose }) { if (!src) return null; return (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}> <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-50"><XIcon className="h-6 w-6" /></button> <div className="relative w-full h-full max-w-6xl max-h-[90vh] flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>{type === 'image' && <img src={src} alt="Full view" className="max-w-full max-h-full object-contain rounded-md shadow-2xl" />}</div> </div>); }
 function ConversationItem({ convo, isSelected, onClick, isMounted, currentUserId, isTyping }) {
-  const otherUser = convo.otherUser; const isLastMessageMine = convo.lastMessageSender === currentUserId; const isReadByClient = convo.userUnreadCount === 0; const isSending = convo.lastMessageStatus === 'sending'; return (<button onClick={onClick} className={cn("flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-zinc-50 transition-all duration-200", isSelected && "bg-zinc-50 border-l-4 border-indigo-600 pl-3")}> <ProfileImage src={otherUser?.profilePicture} name={otherUser?.name} sizeClass="h-12 w-12 shrink-0" /> <div className="flex-1 overflow-hidden min-w-0"> <div className="flex justify-between items-start mb-1 gap-2"><h3 className="font-semibold text-base text-zinc-900 truncate">{otherUser?.name}</h3><span className="text-xs text-zinc-500 shrink-0 pt-1">{isMounted ? formatLastMessageTime(convo.lastMessageAt) : null}</span></div> <div className="flex justify-between items-center gap-2"><div className="flex items-center gap-1 overflow-hidden flex-1">{isTyping ? <p className="text-sm text-indigo-600 font-medium truncate animate-pulse">typing...</p> : <>{isLastMessageMine && (
+  const otherUser = convo.otherUser; const isLastMessageMine = convo.lastMessageSender === currentUserId; const isReadByClient = convo.userUnreadCount === 0; const isSending = convo.lastMessageStatus === 'sending'; return (<button onClick={onClick} className={cn("flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-zinc-50 transition-all duration-200", isSelected && "bg-zinc-50 border-l-4 border-indigo-600 pl-3")}> <ProfileImage src={otherUser?.profilePicture} name={otherUser?.name} sizeClass="h-12 w-12 shrink-0" className="" /> <div className="flex-1 overflow-hidden min-w-0"> <div className="flex justify-between items-start mb-1 gap-2"><h3 className="font-semibold text-base text-zinc-900 truncate">{otherUser?.name}</h3><span className="text-xs text-zinc-500 shrink-0 pt-1">{isMounted ? formatLastMessageTime(convo.lastMessageAt) : null}</span></div> <div className="flex justify-between items-center gap-2"><div className="flex items-center gap-1 overflow-hidden flex-1">{isTyping ? <p className="text-sm text-indigo-600 font-medium truncate animate-pulse">typing...</p> : <>{isLastMessageMine && (
     isSending ? (
       <ClockIcon className="h-3 w-3 text-zinc-400 shrink-0" />
     ) : (
@@ -806,7 +779,7 @@ function ConversationItem({ convo, isSelected, onClick, isMounted, currentUserId
   </span>
 )}</div> </div> </button>);
 }
-function VoiceMessagePlayer({ src, isSender }) { const [isPlaying, setIsPlaying] = useState(false); const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const audioRef = useRef(null); useEffect(() => { const audio = audioRef.current; if (!audio) return; const updateProgress = () => { const current = audio.currentTime; const total = audio.duration; if (Number.isFinite(total) && total > 0) { setProgress((current / total) * 100); setDuration(total); } else { setProgress(0); setDuration(0); } }; const setAudioData = () => { const d = audio.duration; if (Number.isFinite(d)) setDuration(d); }; const handleEnded = () => { setIsPlaying(false); setProgress(0); }; audio.addEventListener('timeupdate', updateProgress); audio.addEventListener('loadedmetadata', setAudioData); audio.addEventListener('durationchange', setAudioData); audio.addEventListener('ended', handleEnded); return () => { audio.removeEventListener('timeupdate', updateProgress); audio.removeEventListener('loadedmetadata', setAudioData); audio.removeEventListener('durationchange', setAudioData); audio.removeEventListener('ended', handleEnded); }; }, []); const togglePlay = () => { const audio = audioRef.current; if (!audio) return; if (isPlaying) audio.pause(); else audio.play(); setIsPlaying(!isPlaying); }; const handleSeek = (e) => { const audio = audioRef.current; if (!audio) return; const newTime = (e.target.value / 100) * audio.duration; audio.currentTime = newTime; setProgress(e.target.value); }; const formatTime = (time) => { if (!Number.isFinite(time) || isNaN(time)) return "0:00"; const mins = Math.floor(time / 60); const secs = Math.floor(time % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; }; return (<div className="flex items-center gap-3 pr-4 min-w-[200px] py-1"> <audio ref={audioRef} src={src} className="hidden" /> <button onClick={togglePlay} className={cn("flex items-center justify-center h-10 w-10 rounded-full transition-colors shrink-0", isSender ? "bg-white/20 hover:bg-white/30 text-white" : "bg-indigo-50 hover:bg-indigo-100 text-indigo-600")}>{isPlaying ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5 ml-0.5" />}</button> <div className="flex-1 flex flex-col gap-1"><input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className={cn("w-full h-1 rounded-lg appearance-none cursor-pointer", isSender ? "bg-white/30 accent-white" : "bg-zinc-200 accent-indigo-600")} /><div className={cn("flex justify-between text-[10px] font-medium", isSender ? "text-white/80" : "text-zinc-500")}><span>{formatTime(audioRef.current?.currentTime || 0)}</span><span>{formatTime(duration)}</span></div></div> </div>); }
+function VoiceMessagePlayer({ src, isSender }) { const [isPlaying, setIsPlaying] = useState(false); const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const audioRef = useRef<HTMLAudioElement | null>(null); useEffect(() => { const audio = audioRef.current; if (!audio) return; const updateProgress = () => { const current = audio.currentTime; const total = audio.duration; if (Number.isFinite(total) && total > 0) { setProgress((current / total) * 100); setDuration(total); } else { setProgress(0); setDuration(0); } }; const setAudioData = () => { const d = audio.duration; if (Number.isFinite(d)) setDuration(d); }; const handleEnded = () => { setIsPlaying(false); setProgress(0); }; audio.addEventListener('timeupdate', updateProgress); audio.addEventListener('loadedmetadata', setAudioData); audio.addEventListener('durationchange', setAudioData); audio.addEventListener('ended', handleEnded); return () => { audio.removeEventListener('timeupdate', updateProgress); audio.removeEventListener('loadedmetadata', setAudioData); audio.removeEventListener('durationchange', setAudioData); audio.removeEventListener('ended', handleEnded); }; }, []); const togglePlay = () => { const audio = audioRef.current; if (!audio) return; if (isPlaying) audio.pause(); else audio.play(); setIsPlaying(!isPlaying); }; const handleSeek = (e) => { const audio = audioRef.current; if (!audio) return; const value = Number((e.target as HTMLInputElement).value); const newTime = (value / 100) * audio.duration; audio.currentTime = newTime; setProgress(value); }; const formatTime = (time) => { if (!Number.isFinite(time) || isNaN(time)) return "0:00"; const mins = Math.floor(time / 60); const secs = Math.floor(time % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; }; return (<div className="flex items-center gap-3 pr-4 min-w-[200px] py-1"> <audio ref={audioRef} src={src} className="hidden" /> <button onClick={togglePlay} className={cn("flex items-center justify-center h-10 w-10 rounded-full transition-colors shrink-0", isSender ? "bg-white/20 hover:bg-white/30 text-white" : "bg-indigo-50 hover:bg-indigo-100 text-indigo-600")}>{isPlaying ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5 ml-0.5" />}</button> <div className="flex-1 flex flex-col gap-1"><input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className={cn("w-full h-1 rounded-lg appearance-none cursor-pointer", isSender ? "bg-white/30 accent-white" : "bg-zinc-200 accent-indigo-600")} /><div className={cn("flex justify-between text-[10px] font-medium", isSender ? "text-white/80" : "text-zinc-500")}><span>{formatTime(audioRef.current?.currentTime || 0)}</span><span>{formatTime(duration)}</span></div></div> </div>); }
 function MessageBubble({
   message,
   isSender,
@@ -824,7 +797,7 @@ function MessageBubble({
   onImageLoad,
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const timestamp = isMounted
     ? new Date(message.createdAt).toLocaleTimeString("en-US", {
@@ -848,8 +821,9 @@ function MessageBubble({
 
   // Close menu on outside click
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (menuRef.current && target && !menuRef.current.contains(target)) {
         setShowMenu(false);
       }
     };
@@ -940,6 +914,7 @@ function MessageBubble({
               <SmartImage
                 src={message.content}
                 alt="Shared image"
+                onClick={() => onViewMedia(message.content, "image")}
                 onLoad={onImageLoad}
               />
             </div>

@@ -20,7 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-import { resetPassword } from "@/actions/reset-password";
+// Backend removed - component is now presentational
 
 const formSchema = z.object({
   password: z.string().min(6, { message: "Min 6 characters required." }),
@@ -52,20 +52,10 @@ export default function ResetPasswordForm() {
     }
 
     setIsLoading(true);
-    try {
-      const result = await resetPassword({ token, password: values.password });
-
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success("Success", { description: "Password has been reset." });
-        router.push("/login");
-      }
-    } catch (error) {
-      toast.error("Something went wrong.");
-    } finally {
-      setIsLoading(false);
-    }
+    // UI-only: No backend call
+    toast.success("Success", { description: "Password has been reset." });
+    router.push("/login");
+    setIsLoading(false);
   }
 
   if (!token) {

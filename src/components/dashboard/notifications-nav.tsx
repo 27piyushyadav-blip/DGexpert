@@ -15,13 +15,25 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRouter } from "next/navigation";
 
-export function NotificationsNav({ data = [] }) {
+type NotificationItem = {
+  id: string;
+  title: string;
+  description: string;
+  type?: "danger" | "warning" | "success" | "info" | string;
+  link?: string;
+};
+
+type NotificationsNavProps = {
+  data?: NotificationItem[];
+};
+
+export function NotificationsNav({ data = [] }: NotificationsNavProps) {
   const router = useRouter();
-  const [readIds, setReadIds] = useState([]);
+  const [readIds, setReadIds] = useState<string[]>([]);
 
-  const notifications = data.filter(n => !readIds.includes(n.id));
+  const notifications = data.filter((n) => !readIds.includes(n.id));
 
-  const handleClick = (n) => {
+  const handleClick = (n: NotificationItem) => {
     setReadIds([...readIds, n.id]);
     if (n.link) router.push(n.link);
   };
@@ -29,7 +41,7 @@ export function NotificationsNav({ data = [] }) {
   /* --------------------------------------------
    * FIXED: Support `danger` notification class
    * -------------------------------------------- */
-  const getIcon = (type) => {
+  const getIcon = (type?: NotificationItem["type"]) => {
     switch (type) {
       case "danger":
         return <XCircle className="h-4 w-4 text-red-600" />; // NEW
@@ -42,7 +54,7 @@ export function NotificationsNav({ data = [] }) {
     }
   };
 
-  const getBg = (type) => {
+  const getBg = (type?: NotificationItem["type"]) => {
     switch (type) {
       case "danger":
         return "bg-red-100"; // NEW

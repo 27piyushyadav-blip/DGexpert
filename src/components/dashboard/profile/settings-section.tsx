@@ -10,6 +10,17 @@ import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+type FieldErrors = Record<string, string[] | string | undefined>;
+
+type SettingsSectionProps = {
+  expert?: unknown;
+  languages: string[];
+  setLanguages: React.Dispatch<React.SetStateAction<string[]>> | ((next: string[]) => void);
+  timezone: string;
+  setTimezone: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  errors?: FieldErrors;
+};
+
 const TIMEZONES = [
   "Pacific/Midway", "US/Hawaii", "US/Alaska", "US/Pacific", "US/Mountain", "US/Central", "US/Eastern",
   "Canada/Atlantic", "America/Buenos_Aires", "UTC", "Europe/London", "Europe/Paris", "Europe/Berlin",
@@ -17,7 +28,7 @@ const TIMEZONES = [
   "Asia/Bangkok", "Asia/Singapore", "Asia/Shanghai", "Asia/Tokyo", "Australia/Sydney", "Pacific/Auckland"
 ];
 
-export function SettingsSection({ expert, languages, setLanguages, timezone, setTimezone, errors = {} }) {
+export function SettingsSection({ expert, languages, setLanguages, timezone, setTimezone, errors = {} }: SettingsSectionProps) {
     // ❌ REMOVE this line:
     // const [timezone, setTimezone] = useState(expert?.timezone || "Australia/Sydney");
 
@@ -78,7 +89,7 @@ export function SettingsSection({ expert, languages, setLanguages, timezone, set
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px]">
                             {TIMEZONES.map((tz) => (
-                                <SelectItem key={tz} value={tz}>{tz.replace("_", " ")}</SelectItem>
+                                <SelectItem className="" key={tz} value={tz}>{tz.replace("_", " ")}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

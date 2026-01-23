@@ -65,6 +65,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { registerSchema, RegisterInput } from "@/schemas/authSchemas";
+// Backend removed - using localStorage mock from client/api/auth
 import { registerUserApi, googleRegisterApi } from "@/client/api/auth";
 
 export function useRegisterForm() {

@@ -12,7 +12,53 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export function IdentitySection({ user, setUserName, setUserUsername, setUserImage, expert, setGender, setLocation, socialLinks, setSocialLinks, errors = {} }) {
+type FieldErrors = Record<string, string[] | undefined>;
+
+type UserInfo = {
+  name?: string;
+  username?: string;
+  email?: string;
+  image?: string;
+};
+
+type ExpertIdentity = {
+  gender?: string;
+  location?: string;
+};
+
+type SocialLinks = {
+  linkedin?: string;
+  twitter?: string;
+  website?: string;
+};
+
+type IdentitySectionProps = {
+  user: UserInfo;
+  setUserName: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  setUserUsername: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  setUserImage: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  expert?: ExpertIdentity;
+  setGender: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  setLocation: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  socialLinks?: SocialLinks;
+  setSocialLinks:
+    | React.Dispatch<React.SetStateAction<SocialLinks>>
+    | ((next: SocialLinks) => void);
+  errors?: FieldErrors;
+};
+
+export function IdentitySection({
+  user,
+  setUserName,
+  setUserUsername,
+  setUserImage,
+  expert,
+  setGender,
+  setLocation,
+  socialLinks,
+  setSocialLinks,
+  errors = {},
+}: IdentitySectionProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -24,8 +70,8 @@ export function IdentitySection({ user, setUserName, setUserUsername, setUserIma
         toast.success("New username generated!");
     };
 
-    const updateSocial = (key, val) => {
-        setSocialLinks({ ...socialLinks, [key]: val });
+    const updateSocial = (key: keyof SocialLinks, val: string) => {
+        setSocialLinks({ ...(socialLinks ?? {}), [key]: val });
     };
 
     return (
@@ -201,7 +247,12 @@ export function IdentitySection({ user, setUserName, setUserUsername, setUserIma
                                     <SelectTrigger className={cn("h-11 bg-white", errors.gender && "border-red-300 ring-red-200")}>
                                         <SelectValue placeholder="Select gender..." />
                                     </SelectTrigger>
-                                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Non-Binary">Non-Binary</SelectItem><SelectItem value="Prefer not to say">Prefer not to say</SelectItem></SelectContent>
+                                    <SelectContent className="">
+                                        <SelectItem className="" value="Male">Male</SelectItem>
+                                        <SelectItem className="" value="Female">Female</SelectItem>
+                                        <SelectItem className="" value="Non-Binary">Non-Binary</SelectItem>
+                                        <SelectItem className="" value="Prefer not to say">Prefer not to say</SelectItem>
+                                    </SelectContent>
                                 </Select>
                             </div>
                         </div>

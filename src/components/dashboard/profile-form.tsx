@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { updateProfile } from "@/actions/profile";
+// Backend removed - component is now presentational
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -218,21 +218,9 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
     formData.set("leaves", JSON.stringify(leaves));
     formData.set("languages", JSON.stringify(languages));
 
-    const result = await updateProfile(null, formData);
-
-    if (!result.success) {
-      setErrors(result.errors || {});
-      toast.error(result.message || "Please fix the highlighted errors.");
-
-      const firstErrorField = Object.keys(result.errors || {})[0];
-      if (firstErrorField && FIELD_TO_TAB[firstErrorField]) {
-        handleTabChange(FIELD_TO_TAB[firstErrorField]);
-      }
-    } else {
-      toast.success(result.message);
-      setIsDirty(false);
-    }
-
+    // Backend removed - UI-only submission
+    toast.success("Profile updated successfully");
+    setIsDirty(false);
     setIsLoading(false);
   };
 

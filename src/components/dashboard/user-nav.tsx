@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+// Backend removed - next-auth removed
 import { LogOut, User, CreditCard, Settings } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,14 +21,16 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 
 export function UserNav({ user: initialUser }) {
   const router = useRouter();
-  const { data: session } = useSession();
 
-  // ⭐ Prefer *fresh DB user* (from Header) → fallback to session user (may be stale)
-  const user = initialUser || session?.user;
+  // Backend removed - using prop user only
+  const user = initialUser || { name: "Demo User", email: "demo@example.com" };
 
   const handleLogout = async () => {
     toast.info("Signing out...");
-    await signOut({ callbackUrl: "/login" });
+    // Backend removed - UI-only logout
+    localStorage.removeItem("auth_user");
+    localStorage.removeItem("access_token");
+    router.push("/login");
   };
 
   // --- KEYBOARD SHORTCUTS ---

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -28,7 +27,7 @@ import {
   InputOTPSeparator,
 } from "@/components/ui/input-otp";
 
-import { resendOtp } from "@/actions/resend";
+// Backend removed - component is now presentational
 
 const verifySchema = z.object({
   otp: z.string().min(6, { message: "Your code must be 6 digits." }),
@@ -36,7 +35,11 @@ const verifySchema = z.object({
 
 type VerifyFormValues = z.infer<typeof verifySchema>;
 
-export default function VerifyForm() {
+type VerifyFormProps = {
+  email?: string;
+};
+
+export default function VerifyForm({ email: emailProp }: VerifyFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -56,7 +59,7 @@ export default function VerifyForm() {
     }
   }
 
-  const email = emailParam;
+  const email = emailProp ?? emailParam;
 
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -89,21 +92,10 @@ export default function VerifyForm() {
     }
 
     setIsLoading(true);
-
-    try {
-      const result = await resendOtp(email);
-
-      if (result.error) {
-        toast.error("Resend Failed", { description: result.error });
-      } else {
-        toast.success("Code resent!", { description: "Check your inbox." });
-        setCountdown(60);
-      }
-    } catch {
-      toast.error("Failed to resend code.");
-    } finally {
-      setIsLoading(false);
-    }
+    // UI-only: No backend call
+    toast.success("Code resent!", { description: "Check your inbox." });
+    setCountdown(60);
+    setIsLoading(false);
   }
 
   async function onSubmit(values: VerifyFormValues) {
@@ -114,38 +106,12 @@ export default function VerifyForm() {
     }
 
     setIsLoading(true);
-
-    try {
-      const res = await signIn("credentials", {
-        redirect: false,
-        email: email,
-        otp: values.otp,
-        type: "otp",
-      });
-
-      if (res?.error) {
-        toast.error("Verification Failed", {
-          description:
-            res.error === "Invalid OTP"
-              ? "Incorrect code. Please try again."
-              : res.error,
-        });
-
-        form.reset();
-        setIsLoading(false);
-        return;
-      }
-
-      toast.success("Verified & Logged In!", {
-        description: "Welcome to Mindnamo.",
-      });
-
-      router.push("/");
-      router.refresh();
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-      setIsLoading(false);
-    }
+    // UI-only: No backend call
+    toast.success("Verified & Logged In!", {
+      description: "Welcome to Mindnamo.",
+    });
+    router.push("/");
+    setIsLoading(false);
   }
 
   return (

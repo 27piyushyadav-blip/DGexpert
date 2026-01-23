@@ -4,7 +4,39 @@ import { Info, CalendarClock, CalendarDays, AlertCircle } from "lucide-react";
 import { WeeklySchedule } from "./availability/WeeklySchedule";
 import { DateOverrides } from "./availability/DateOverrides";
 
-export function AvailabilitySection({ availability, setAvailability, leaves, setLeaves, errors = {} }) {
+type AvailabilitySlot = {
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+};
+
+type LeaveItem = {
+  date: Date | string;
+  note?: string;
+  isRecurring?: boolean;
+};
+
+type FieldErrors = Record<string, string | string[] | undefined>;
+
+type AvailabilitySectionProps = {
+  availability: AvailabilitySlot[];
+  setAvailability:
+    | React.Dispatch<React.SetStateAction<AvailabilitySlot[]>>
+    | ((next: AvailabilitySlot[]) => void);
+  leaves: LeaveItem[];
+  setLeaves:
+    | React.Dispatch<React.SetStateAction<LeaveItem[]>>
+    | ((next: LeaveItem[]) => void);
+  errors?: FieldErrors;
+};
+
+export function AvailabilitySection({
+  availability,
+  setAvailability,
+  leaves,
+  setLeaves,
+  errors = {},
+}: AvailabilitySectionProps) {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       

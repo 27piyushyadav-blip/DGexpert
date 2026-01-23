@@ -14,9 +14,49 @@ import {
     Video, Play,  Loader2, Info, 
     UploadCloud, CheckCircle2, RefreshCw, X
   } from "lucide-react";
-  import { UploadDropzone } from "@/lib/uploadthing";
+  // Backend removed - uploadthing removed
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+
+type WorkHistoryItem = {
+  company: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  current: boolean;
+};
+
+type EducationItem = {
+  institution: string;
+  degree: string;
+  fieldOfStudy: string;
+  startDate: string;
+  endDate: string;
+  current: boolean;
+};
+
+type FieldErrors = Record<string, string[] | undefined>;
+
+type ProfessionalSectionProps = {
+  expert?: unknown;
+  tags?: string[];
+  setTags: React.Dispatch<React.SetStateAction<string[]>> | ((next: string[]) => void);
+  workHistory?: WorkHistoryItem[];
+  setWorkHistory:
+    | React.Dispatch<React.SetStateAction<WorkHistoryItem[]>>
+    | ((next: WorkHistoryItem[]) => void);
+  education?: EducationItem[];
+  setEducation:
+    | React.Dispatch<React.SetStateAction<EducationItem[]>>
+    | ((next: EducationItem[]) => void);
+  bio?: string;
+  setBio: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  specialization?: string;
+  setSpecialization: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  introVideo?: string;
+  setIntroVideo: React.Dispatch<React.SetStateAction<string>> | ((next: string) => void);
+  errors?: FieldErrors;
+};
 
 // 1. Accept bio/specialization props from parent
 export function ProfessionalSection({ 
@@ -28,24 +68,49 @@ export function ProfessionalSection({
     specialization, setSpecialization, 
     introVideo, setIntroVideo, // ⭐ NEW
     errors = {} 
-}) {
+}: ProfessionalSectionProps) {
 
     const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   
   // --- HELPERS ---
-  const addJob = () => setWorkHistory([...workHistory, { company: "", role: "", startDate: "", endDate: "", current: false }]);
-  const removeJob = (index) => setWorkHistory(workHistory.filter((_, i) => i !== index));
-  const updateJob = (index, field, val) => { 
+  const addJob = () =>
+    setWorkHistory([
+      ...workHistory,
+      { company: "", role: "", startDate: "", endDate: "", current: false },
+    ]);
+  const removeJob = (index: number) =>
+    setWorkHistory(workHistory.filter((_, i) => i !== index));
+  const updateJob = <K extends keyof WorkHistoryItem>(
+    index: number,
+    field: K,
+    val: WorkHistoryItem[K]
+  ) => {
       const newJobs = [...workHistory]; 
       if (!newJobs[index]) return;
       newJobs[index][field] = val; 
       setWorkHistory(newJobs); 
   };
 
-  const addEdu = () => setEducation([...education, { institution: "", degree: "", fieldOfStudy: "", startDate: "", endDate: "", current: false }]);
-  const removeEdu = (index) => setEducation(education.filter((_, i) => i !== index));
-  const updateEdu = (index, field, val) => { 
+  const addEdu = () =>
+    setEducation([
+      ...education,
+      {
+        institution: "",
+        degree: "",
+        fieldOfStudy: "",
+        startDate: "",
+        endDate: "",
+        current: false,
+      },
+    ]);
+  const removeEdu = (index: number) =>
+    setEducation(education.filter((_, i) => i !== index));
+  const updateEdu = <K extends keyof EducationItem>(
+    index: number,
+    field: K,
+    val: EducationItem[K]
+  ) => {
       const newEdu = [...education]; 
       if (!newEdu[index]) return;
       newEdu[index][field] = val; 
@@ -175,38 +240,34 @@ export function ProfessionalSection({
                         isUploading ? "border-rose-200 bg-rose-50/30" : "border-zinc-200 hover:border-rose-400 hover:bg-zinc-50"
                     )}>
                       {!isUploading ? (
-                        <UploadDropzone
-                            endpoint="introVideo"
-                            onUploadProgress={(p) => setUploadProgress(p)}
-                            onUploadBegin={() => setIsUploading(true)}
-                            onClientUploadComplete={(res) => {
-                                setIsUploading(false);
-                                setUploadProgress(0);
-                                if (res?.[0]) {
-                                    setIntroVideo(res[0].url);
-                                    toast.success("Video ready! Preview it on the left.");
-                                }
+                        <div
+                            className="flex flex-col items-center justify-center p-8 cursor-pointer"
+                            onClick={() => {
+                                const input = document.createElement("input");
+                                input.type = "file";
+                                input.accept = "video/*";
+                                input.onchange = () => {
+                                    const file = input.files?.[0];
+                                    if (file) {
+                                        setIsUploading(true);
+                                        setUploadProgress(50);
+                                        setTimeout(() => {
+                                            const url = URL.createObjectURL(file);
+                                            setIntroVideo(url);
+                                            setIsUploading(false);
+                                            setUploadProgress(0);
+                                            toast.success("Video ready! Preview it on the left.");
+                                        }, 1000);
+                                    }
+                                };
+                                input.click();
                             }}
-                            onUploadError={(error) => {
-                                setIsUploading(false);
-                                setUploadProgress(0);
-                                toast.error(`Upload failed: ${error.message}`);
-                            }}
-                            appearance={{
-                                container: { border: 'none', padding: '2rem' },
-                                label: { color: '#71717a', fontSize: '0.875rem' },
-                                allowedContent: { display: 'none' },
-                                button: { 
-                                    backgroundColor: '#18181b', 
-                                    borderRadius: '0.75rem',
-                                    fontSize: '0.875rem',
-                                    padding: '0 1.5rem'
-                                }
-                            }}
-                            content={{
-                                label: "Drag video or click to browse",
-                            }}
-                        />
+                        >
+                            <div className="text-center space-y-2">
+                                <UploadCloud className="h-8 w-8 text-zinc-400 mx-auto" />
+                                <p className="text-sm text-zinc-500">Drag video or click to browse</p>
+                            </div>
+                        </div>
                       ) : (
                         <div className="p-8 text-center space-y-4">
                             <div className="relative inline-block">
@@ -302,12 +363,12 @@ export function ProfessionalSection({
                                         <div className="relative">
                                             <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                                             {/* Fix: Fallback to "" */}
-                                            <Input value={job.company || ""} onChange={(e) => updateJob(i, 'company', e.target.value)} placeholder="e.g. Google" className="pl-9 h-10 border-zinc-200 focus:ring-emerald-500"/>
+                                            <Input value={job.company || ""} onChange={(e) => updateJob(i, "company", e.target.value)} placeholder="e.g. Google" className="pl-9 h-10 border-zinc-200 focus:ring-emerald-500"/>
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Role Title</Label>
-                                        <Input value={job.role || ""} onChange={(e) => updateJob(i, 'role', e.target.value)} placeholder="e.g. Senior Engineer" className="h-10 font-medium border-zinc-200 focus:ring-emerald-500"/>
+                                        <Input value={job.role || ""} onChange={(e) => updateJob(i, "role", e.target.value)} placeholder="e.g. Senior Engineer" className="h-10 font-medium border-zinc-200 focus:ring-emerald-500"/>
                                     </div>
                                 </div>
 
@@ -315,15 +376,15 @@ export function ProfessionalSection({
                                     <div className="grid grid-cols-2 gap-3 w-full">
                                         <div className="space-y-1.5">
                                             <Label className="text-xs font-semibold text-zinc-500">Start Date</Label>
-                                            <Input type="date" value={job.startDate ? new Date(job.startDate).toISOString().split('T')[0] : ''} onChange={(e) => updateJob(i, 'startDate', e.target.value)} className="h-9 border-zinc-200"/>
+                                            <Input type="date" value={job.startDate ? new Date(job.startDate).toISOString().split("T")[0] : ""} onChange={(e) => updateJob(i, "startDate", e.target.value)} className="h-9 border-zinc-200"/>
                                         </div>
                                         <div className="space-y-1.5 relative">
                                             <Label className="text-xs font-semibold text-zinc-500">End Date</Label>
-                                            <Input type="date" value={job.endDate ? new Date(job.endDate).toISOString().split('T')[0] : ''} onChange={(e) => updateJob(i, 'endDate', e.target.value)} className="h-9 border-zinc-200 disabled:opacity-50" disabled={job.current} />
+                                            <Input type="date" value={job.endDate ? new Date(job.endDate).toISOString().split("T")[0] : ""} onChange={(e) => updateJob(i, "endDate", e.target.value)} className="h-9 border-zinc-200 disabled:opacity-50" disabled={job.current} />
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 pb-2">
-                                        <Checkbox id={`curr-${i}`} checked={!!job.current} onCheckedChange={(c) => updateJob(i, 'current', c)} className="data-[state=checked]:bg-emerald-600 border-zinc-300" />
+                                        <Checkbox id={`curr-${i}`} checked={!!job.current} onCheckedChange={(c) => updateJob(i, "current", Boolean(c))} className="data-[state=checked]:bg-emerald-600 border-zinc-300" />
                                         <Label htmlFor={`curr-${i}`} className="cursor-pointer text-sm font-medium text-zinc-700">I currently work here</Label>
                                     </div>
                                 </div>
@@ -349,12 +410,12 @@ export function ProfessionalSection({
                 <div key={i} className="p-5 border border-zinc-200 rounded-xl bg-white space-y-4 relative group hover:border-blue-300 hover:shadow-md transition-all">
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeEdu(i)} className="absolute top-2 right-2 text-zinc-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="h-4 w-4"/></Button>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
-                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Institution</Label><Input value={edu.institution || ""} onChange={(e) => updateEdu(i, 'institution', e.target.value)} placeholder="e.g. Harvard University" className="h-10 border-zinc-200 focus:ring-blue-500"/></div>
-                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Degree</Label><div className="relative"><Award className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" /><Input value={edu.degree || ""} onChange={(e) => updateEdu(i, 'degree', e.target.value)} placeholder="e.g. B.Sc, PhD" className="pl-9 h-10 border-zinc-200 focus:ring-blue-500"/></div></div>
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Institution</Label><Input value={edu.institution || ""} onChange={(e) => updateEdu(i, "institution", e.target.value)} placeholder="e.g. Harvard University" className="h-10 border-zinc-200 focus:ring-blue-500"/></div>
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Degree</Label><div className="relative"><Award className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" /><Input value={edu.degree || ""} onChange={(e) => updateEdu(i, "degree", e.target.value)} placeholder="e.g. B.Sc, PhD" className="pl-9 h-10 border-zinc-200 focus:ring-blue-500"/></div></div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Field of Study</Label><Input value={edu.fieldOfStudy || ""} onChange={(e) => updateEdu(i, 'fieldOfStudy', e.target.value)} placeholder="e.g. Psychology" className="h-10 border-zinc-200 focus:ring-blue-500"/></div>
-                        <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500">Start Year</Label><Input type="date" value={edu.startDate ? new Date(edu.startDate).toISOString().split('T')[0] : ''} onChange={(e) => updateEdu(i, 'startDate', e.target.value)} className="h-9 border-zinc-200"/></div><div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500">End Year</Label><Input type="date" value={edu.endDate ? new Date(edu.endDate).toISOString().split('T')[0] : ''} onChange={(e) => updateEdu(i, 'endDate', e.target.value)} className="h-9 border-zinc-200"/></div></div>
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Field of Study</Label><Input value={edu.fieldOfStudy || ""} onChange={(e) => updateEdu(i, "fieldOfStudy", e.target.value)} placeholder="e.g. Psychology" className="h-10 border-zinc-200 focus:ring-blue-500"/></div>
+                        <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500">Start Year</Label><Input type="date" value={edu.startDate ? new Date(edu.startDate).toISOString().split("T")[0] : ""} onChange={(e) => updateEdu(i, "startDate", e.target.value)} className="h-9 border-zinc-200"/></div><div className="space-y-1.5"><Label className="text-xs font-semibold text-zinc-500">End Year</Label><Input type="date" value={edu.endDate ? new Date(edu.endDate).toISOString().split("T")[0] : ""} onChange={(e) => updateEdu(i, "endDate", e.target.value)} className="h-9 border-zinc-200"/></div></div>
                     </div>
                 </div>
             ))}

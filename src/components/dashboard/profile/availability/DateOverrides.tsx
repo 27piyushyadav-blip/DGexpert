@@ -10,7 +10,20 @@ import { Calendar, Repeat, Trash2, X, CalendarOff } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export function DateOverrides({ leaves, setLeaves }) {
+type LeaveItem = {
+  date: Date | string;
+  note?: string;
+  isRecurring?: boolean;
+};
+
+type DateOverridesProps = {
+  leaves: LeaveItem[];
+  setLeaves:
+    | React.Dispatch<React.SetStateAction<LeaveItem[]>>
+    | ((next: LeaveItem[]) => void);
+};
+
+export function DateOverrides({ leaves, setLeaves }: DateOverridesProps) {
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [recurring, setRecurring] = useState(false);
@@ -21,7 +34,11 @@ export function DateOverrides({ leaves, setLeaves }) {
         toast.error("This date is already blocked.");
         return;
     }
-    setLeaves([...leaves, { date: new Date(date), note: note || "Time Off", isRecurring: recurring }].sort((a,b) => new Date(a.date) - new Date(b.date)));
+    setLeaves(
+      [...leaves, { date: new Date(date), note: note || "Time Off", isRecurring: recurring }].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      )
+    );
     setDate(""); setNote(""); setRecurring(false);
     toast.success("Date blocked.");
   };

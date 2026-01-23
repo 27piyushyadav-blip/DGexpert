@@ -1,7 +1,24 @@
 "use client";
 
-import { generateUploadButton } from "@uploadthing/react";
+// Backend removed - uploadthing removed, using mock component
+export function UploadButton({ onClientUploadComplete, ...props }) {
+  const handleClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = props.accept || "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        onClientUploadComplete?.([{ url, name: file.name }]);
+      }
+    };
+    input.click();
+  };
 
-// Generate the button using the router type (optional but good for TS)
-// Since this is JS, we just generate it directly.
-export const UploadButton = generateUploadButton();
+  return (
+    <button type="button" onClick={handleClick} {...props}>
+      {props.children || "Upload"}
+    </button>
+  );
+}

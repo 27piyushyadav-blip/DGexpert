@@ -35,19 +35,19 @@ export default function MeetPage() {
   const router = useRouter();
 
   // NOTE: params.id is a secure meetingId (NOT appointmentId)
-  const meetingId = params.id;
+  const meetingId = typeof params.id === "string" ? params.id : params.id?.[0] || "";
 
   /* ----------------------------------------------------
    * REFS
    * -------------------------------------------------- */
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const whiteboardRef = useRef(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const whiteboardRef = useRef<HTMLCanvasElement>(null);
 
-  const peerRef = useRef(null);
-  const socketRef = useRef(null);
-  const iceQueueRef = useRef([]);
-  const localStreamRef = useRef(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const socketRef = useRef<any>(null);
+  const iceQueueRef = useRef<any[]>([]);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   /* ----------------------------------------------------
    * STATE
@@ -199,11 +199,11 @@ export default function MeetPage() {
 
         socket.on("wb-update-state", ({ image }) => {
           if (!whiteboardRef.current) return;
+          const ctx = whiteboardRef.current.getContext("2d");
+          if (!ctx) return;
           const img = new Image();
           img.onload = () => {
-            whiteboardRef.current
-              .getContext("2d")
-              .drawImage(img, 0, 0);
+            ctx.drawImage(img, 0, 0);
           };
           img.src = image;
         });
@@ -272,7 +272,7 @@ export default function MeetPage() {
       <div className="flex-1 relative bg-white order-2 lg:order-1 p-4">
         <Whiteboard
           socket={socketRef.current}
-          roomId={meetingId}
+          roomId={meetingId || ""}
           canvasRef={whiteboardRef}
         />
 
@@ -280,6 +280,7 @@ export default function MeetPage() {
           <VideoControls
             localStream={localStreamRef.current}
             onEndCall={handleEndCall}
+            className=""
           />
         </div>
       </div>

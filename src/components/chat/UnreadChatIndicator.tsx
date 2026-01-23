@@ -2,36 +2,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { initSocket, getSocket } from "@/lib/socket-client";
-import { getTotalUnreadCountAction } from "@/actions/unread";
-import { useSession } from "next-auth/react";
 
+// Backend removed - socket and actions removed
 export default function UnreadChatIndicator({ initialCount = 0 }) {
-  const { data: session } = useSession();
   const [count, setCount] = useState(initialCount);
 
   useEffect(() => {
     setCount(initialCount);
   }, [initialCount]);
 
-  useEffect(() => {
-    if (!session?.user?.id) return;
-
-    const socket = initSocket(session.user.id);
-
-    const handleUpdate = () => {
-      getTotalUnreadCountAction().then(setCount);
-    };
-
-    // Listen for events that change the total unread count
-    socket.on("receiveDirectMessage", handleUpdate);
-    socket.on("messagesRead", handleUpdate);
-
-    return () => {
-        socket.off("messagesRead", handleUpdate);
-        socket.off("receiveDirectMessage", handleUpdate);
-      };
-  }, [session?.user?.id]);
+  // Backend removed - socket listeners removed
 
   if (count <= 0) return null;
 

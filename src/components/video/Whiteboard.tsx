@@ -19,7 +19,7 @@ const EXPERT_WATERMARK_URL = "https://github.com/shadcn.png";
 type WhiteboardProps = {
   socket?: any;
   roomId: string;
-  canvasRef?: React.RefObject<HTMLCanvasElement>;
+  canvasRef?: React.RefObject<HTMLCanvasElement | null> | React.MutableRefObject<HTMLCanvasElement | null>;
 };
 
 /* ----------------------------------------

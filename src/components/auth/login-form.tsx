@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-// import { signIn } from "next-auth/react";
-import { loginUserApi, googleLoginApi } from "@/client/api/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,17 +46,12 @@ const LoginForm: React.FC = () => {
   // };
 
   const handleGoogleSignIn = async () => {
-  setLoadingType("google");
-
-  try {
-    await googleLoginApi();
+    setLoadingType("google");
+    // UI-only: No backend call
     toast.success("Welcome!", { description: "Logged in with Google." });
     router.push(callbackUrl);
-  } catch (error: any) {
-    toast.error(error.message || "Google Sign-In failed.");
     setLoadingType(null);
-  }
-};
+  };
 
 
   // const onSubmit: SubmitHandler<FormValues> = async (values) => {
@@ -86,23 +79,14 @@ const LoginForm: React.FC = () => {
   // };
 
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
-  setLoadingType("credentials");
-
-  try {
-    await loginUserApi(values);
-
+    setLoadingType("credentials");
+    // UI-only: No backend call
     toast.success("Welcome back!", {
       description: "Logged in successfully.",
     });
-
     router.push(callbackUrl);
-  } catch (error: any) {
-    toast.error("Login Failed", {
-      description: error.message || "Invalid email or password.",
-    });
     setLoadingType(null);
-  }
-};
+  };
 
   const isLoading = !!loadingType;
 

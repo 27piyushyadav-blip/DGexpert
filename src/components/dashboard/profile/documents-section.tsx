@@ -11,6 +11,26 @@ import { FileText, FileImage, Trash2, ShieldCheck, AlertCircle, CloudUpload, Loa
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+type FieldErrors = Record<string, string[] | string | undefined>;
+
+type DocumentItem = {
+  title: string;
+  category: string;
+  url: string;
+  fileType?: string;
+  fileSize?: string;
+  // legacy fields (older saved data)
+  type?: string;
+};
+
+type DocumentsSectionProps = {
+  documents: DocumentItem[];
+  setDocuments:
+    | React.Dispatch<React.SetStateAction<DocumentItem[]>>
+    | ((next: DocumentItem[]) => void);
+  errors?: FieldErrors;
+};
+
 const DOC_TYPES = [
   "Degree / Diploma",
   "Professional License",
@@ -20,14 +40,14 @@ const DOC_TYPES = [
   "Other"
 ];
 
-export function DocumentsSection({ documents, setDocuments, errors = {} }) {
+export function DocumentsSection({ documents, setDocuments, errors = {} }: DocumentsSectionProps) {
   const [docName, setDocName] = useState("");
   const [docCategory, setDocCategory] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
-  const removeDoc = (index) => setDocuments(documents.filter((_, i) => i !== index));
+  const removeDoc = (index: number) => setDocuments(documents.filter((_, i) => i !== index));
 
-  const getFileIcon = (type) => {
+  const getFileIcon = (type?: string) => {
     // Handle legacy data safely
     const safeType = (type || "").toLowerCase();
     if (safeType.includes("pdf")) return <FileText className="h-5 w-5 text-red-500" />;
@@ -108,8 +128,12 @@ export function DocumentsSection({ documents, setDocuments, errors = {} }) {
                             <SelectTrigger className="h-11 bg-white border-zinc-200 focus:ring-indigo-500">
                                 <SelectValue placeholder="Select type..." />
                             </SelectTrigger>
-                            <SelectContent>
-                                {DOC_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            <SelectContent className="">
+                                {DOC_TYPES.map((t) => (
+                                  <SelectItem className="" key={t} value={t}>
+                                    {t}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>

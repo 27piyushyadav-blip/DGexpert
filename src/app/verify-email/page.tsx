@@ -9,7 +9,7 @@ export const metadata = {
 export default async function VerifyEmailPage({ searchParams }) {
   const params = await searchParams;
 
-  let email = null;
+  let email: string | null = null;
 
   try {
     // ✅ Primary (new flow)
@@ -61,7 +61,7 @@ export default async function VerifyEmailPage({ searchParams }) {
 
       {/* Right Side */}
       <div className="flex w-full lg:w-1/2 items-center justify-center p-8 py-12 lg:p-16">
-        <VerifyForm email={email} />
+        <VerifyForm />
       </div>
     </div>
   );

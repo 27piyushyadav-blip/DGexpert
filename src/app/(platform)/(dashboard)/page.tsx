@@ -18,7 +18,7 @@ const mockStats = [
 ];
 
 export default function DashboardPage() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<any>(null);
 
   useEffect(() => {
     // Mock data - backend removed

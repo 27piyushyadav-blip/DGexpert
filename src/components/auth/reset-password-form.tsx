@@ -19,21 +19,29 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { resetPasswordApi, AuthError } from "@/client/api/auth";
 
-// Backend removed - component is now presentational
+// Password validation regex
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
 
 const formSchema = z.object({
-  password: z.string().min(6, { message: "Min 6 characters required." }),
+  password: z.string().regex(passwordRegex, {
+    message: "Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character.",
+  }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
 });
 
-export default function ResetPasswordForm() {
+type ResetPasswordFormProps = {
+  token?: string | null;
+};
+
+export default function ResetPasswordForm({ token: tokenProp }: ResetPasswordFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams?.get("token");
+  const token = tokenProp || searchParams?.get("token");
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -47,15 +55,30 @@ export default function ResetPasswordForm() {
 
   async function onSubmit(values) {
     if (!token) {
-        toast.error("Missing token.");
-        return;
+      toast.error("Missing reset token.");
+      return;
     }
 
     setIsLoading(true);
-    // UI-only: No backend call
-    toast.success("Success", { description: "Password has been reset." });
-    router.push("/login");
-    setIsLoading(false);
+    try {
+      await resetPasswordApi(token, values.password);
+      toast.success("Password reset successful", { 
+        description: "You can now login with your new password." 
+      });
+      router.push("/login");
+    } catch (error) {
+      if (error instanceof AuthError) {
+        toast.error("Reset failed", {
+          description: error.message,
+        });
+      } else {
+        toast.error("Something went wrong", {
+          description: "Please try again later.",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   if (!token) {

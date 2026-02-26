@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GoogleButton } from "@/components/auth/google-button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { loginUserApi, googleLoginApi, AuthError } from "@/client/api/auth";
+import { useAuth } from "@/contexts/auth-context";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -26,6 +28,7 @@ const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") || "/";
+  const { login } = useAuth();
 
   const [loadingType, setLoadingType] = useState<"google" | "credentials" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -47,10 +50,13 @@ const LoginForm: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setLoadingType("google");
-    // UI-only: No backend call
-    toast.success("Welcome!", { description: "Logged in with Google." });
-    router.push(callbackUrl);
-    setLoadingType(null);
+    try {
+      googleLoginApi();
+      // This will redirect to Google, so no need to handle success here
+    } catch (error) {
+      toast.error("Google Sign-In failed. Please try again.");
+      setLoadingType(null);
+    }
   };
 
 
@@ -80,12 +86,42 @@ const LoginForm: React.FC = () => {
 
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
     setLoadingType("credentials");
-    // UI-only: No backend call
-    toast.success("Welcome back!", {
-      description: "Logged in successfully.",
-    });
-    router.push(callbackUrl);
-    setLoadingType(null);
+    try {
+      await login(values.email, values.password);
+      toast.success("Welcome back!", {
+        description: "Logged in successfully.",
+      });
+      router.push(callbackUrl);
+    } catch (err: any) {
+      if (err instanceof AuthError) {
+        switch (err.statusCode) {
+          case 401:
+            if (err.message.includes("verify")) {
+              toast.error("Please verify your email", {
+                description: "Check your inbox for verification link",
+              });
+            } else if (err.message.includes("Google")) {
+              toast.error("Google-only account", {
+                description: "Please login using Google",
+              });
+            } else if (err.message.includes("suspended")) {
+              toast.error("Account suspended", {
+                description: "Please contact support",
+              });
+            } else {
+              toast.error("Invalid credentials", {
+                description: "Please check your email and password",
+              });
+            }
+            break;
+          default:
+            toast.error(err.message || "Login failed");
+        }
+      } else {
+        toast.error(err.message || "Something went wrong");
+      }
+      setLoadingType(null);
+    }
   };
 
   const isLoading = !!loadingType;

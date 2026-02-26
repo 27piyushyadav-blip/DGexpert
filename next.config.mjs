@@ -4,7 +4,7 @@ const nextConfig = {
   //reactCompiler: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ["*.cloudworkstations.dev", "localhost:3000"],
+      allowedOrigins: ["*.cloudworkstations.dev", "localhost:3000", "localhost:3001"],
     },
   },
   images: {

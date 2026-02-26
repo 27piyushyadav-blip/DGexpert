@@ -18,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { forgotPasswordApi } from "@/client/api/auth";
 
 // Backend removed - component is now presentational
 
@@ -37,12 +38,19 @@ export default function ForgotPasswordForm() {
 
   async function onSubmit(values) {
     setIsLoading(true);
-    // UI-only: No backend call
-    toast.success("Check your inbox", {
-      description: "If an account exists, you'll receive a reset link.",
-    });
-    form.reset();
-    setIsLoading(false);
+    try {
+      await forgotPasswordApi(values.email);
+      toast.success("Check your inbox", {
+        description: "If an account exists, you'll receive a reset link.",
+      });
+      form.reset();
+    } catch (error) {
+      toast.error("Something went wrong", {
+        description: "Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (

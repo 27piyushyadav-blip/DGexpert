@@ -65,8 +65,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { registerSchema, RegisterInput } from "@/schemas/authSchemas";
-// Backend removed - using localStorage mock from client/api/auth
-import { registerUserApi, googleRegisterApi } from "@/client/api/auth";
+import { registerUserApi, googleRegisterApi, AuthError } from "@/client/api/auth";
 
 export function useRegisterForm() {
   const router = useRouter();
@@ -97,10 +96,20 @@ export function useRegisterForm() {
 
     try {
       await registerUserApi(values);
-      toast.success("Account created!");
+      toast.success("Account created!", { 
+        description: "Check your email to verify your account" 
+      });
       router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong");
+      if (err instanceof AuthError) {
+        if (err.statusCode === 409) {
+          toast.error("Email already registered as expert");
+        } else {
+          toast.error(err.message || "Registration failed");
+        }
+      } else {
+        toast.error(err.message || "Something went wrong");
+      }
       setLoadingType(null);
     }
   }

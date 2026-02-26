@@ -18,106 +18,179 @@
 
 // src/client/api/auth.ts
 
-import { RegisterInput } from "@/schemas/authSchemas";
+const BASE_URL = "http://localhost:3000/auth/expert";
 
-type MockUser = {
-  id: string;
+// Types for API responses
+type AuthResponse = {
+  message: string;
+};
+
+type LoginResponse = {
+  access_token: string;
+  refresh_token: string;
+};
+
+type RefreshResponse = {
+  access_token: string;
+  refresh_token: string;
+};
+
+// API Error handler
+export class AuthError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number = 500) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new AuthError(data.message || 'Request failed', response.status);
+  }
+  
+  return data;
+}
+
+// 1. Register Expert
+export async function registerUserApi(data: {
   name: string;
   email: string;
-  provider: "credentials" | "google";
-};
-
-const MOCK_DELAY = 800;
-
-function wait(ms: number) {
-  return new Promise((res) => setTimeout(res, ms));
-}
-
-export async function registerUserApi(
-  data: RegisterInput
-): Promise<MockUser> {
-  await wait(MOCK_DELAY);
-
-  // simulate email already exists
-  if (data.email === "exists@example.com") {
-    throw new Error("Email already registered");
-  }
-
-  const user: MockUser = {
-    id: crypto.randomUUID(),
-    name: data.name,
-    email: data.email,
-    provider: "credentials",
-  };
-
-  localStorage.setItem("auth_user", JSON.stringify(user));
-
-  return user;
-}
-
-export async function googleRegisterApi(): Promise<MockUser> {
-  await wait(MOCK_DELAY);
-
-  const user: MockUser = {
-    id: crypto.randomUUID(),
-    name: "Google User",
-    email: "google.user@gmail.com",
-    provider: "google",
-  };
-
-  localStorage.setItem("auth_user", JSON.stringify(user));
-
-  return user;
-}
-
-
-// src/client/api/auth.ts
-
-type LoginInput = {
-  email: string;
   password: string;
-};
+}): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 
-export async function loginUserApi(
-  data: LoginInput
-) {
-  await wait(MOCK_DELAY);
-
-  // ❌ invalid credentials simulation
-  if (data.email !== "demo@mindnamo.com" || data.password !== "password") {
-    throw new Error("Invalid email or password");
-  }
-
-  const user = {
-    id: crypto.randomUUID(),
-    name: "Demo Expert",
-    email: data.email,
-    provider: "credentials",
-    role: "expert",
-    accessToken: "mock-access-token",
-  };
-
-  localStorage.setItem("auth_user", JSON.stringify(user));
-  localStorage.setItem("access_token", user.accessToken);
-
-  return user;
+  return handleResponse<AuthResponse>(response);
 }
 
-export async function googleLoginApi() {
-  await wait(MOCK_DELAY);
+// 2. Verify Email
+export async function verifyEmailApi(token: string): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/verify?token=${token}`, {
+    method: "GET",
+  });
 
-  const user = {
-    id: crypto.randomUUID(),
-    name: "Google Expert",
-    email: "google.expert@gmail.com",
-    provider: "google",
-    role: "expert",
-    accessToken: "mock-google-token",
-  };
+  return handleResponse<AuthResponse>(response);
+}
 
-  localStorage.setItem("auth_user", JSON.stringify(user));
-  localStorage.setItem("access_token", user.accessToken);
+// 3. Login
+export async function loginUserApi(data: {
+  identifier: string;
+  password: string;
+}): Promise<LoginResponse> {
+  const response = await fetch(`${BASE_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 
-  return user;
+  const result = await handleResponse<LoginResponse>(response);
+  
+  // Store tokens in localStorage
+  localStorage.setItem("access_token", result.access_token);
+  localStorage.setItem("refresh_token", result.refresh_token);
+  
+  return result;
+}
+
+// 4. Refresh Token
+export async function refreshTokenApi(): Promise<RefreshResponse> {
+  const refreshToken = localStorage.getItem("refresh_token");
+  
+  if (!refreshToken) {
+    throw new AuthError("No refresh token available", 401);
+  }
+
+  const response = await fetch(`${BASE_URL}/refresh`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${refreshToken}`
+    },
+  });
+
+  const result = await handleResponse<RefreshResponse>(response);
+  
+  // Update tokens in localStorage
+  localStorage.setItem("access_token", result.access_token);
+  localStorage.setItem("refresh_token", result.refresh_token);
+  
+  return result;
+}
+
+// 5. Logout
+export async function logoutApi(): Promise<AuthResponse> {
+  const accessToken = localStorage.getItem("access_token");
+  
+  if (!accessToken) {
+    throw new AuthError("No access token available", 401);
+  }
+
+  const response = await fetch(`${BASE_URL}/logout`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`
+    },
+  });
+
+  // Clear tokens from localStorage
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  
+  return handleResponse<AuthResponse>(response);
+}
+
+// 6. Forgot Password
+export async function forgotPasswordApi(email: string): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
+// 7. Reset Password
+export async function resetPasswordApi(token: string, password: string): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/reset-password?token=${token}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
+// 8. Google Login (redirect to Google)
+export function googleLoginApi(): void {
+  window.location.href = `${BASE_URL}/google`;
+}
+
+// Google Register (same as Google Login for this API)
+export function googleRegisterApi(): void {
+  googleLoginApi();
+}
+
+// Helper function to get current access token
+export function getAccessToken(): string | null {
+  return localStorage.getItem("access_token");
+}
+
+// Helper function to get current refresh token
+export function getRefreshToken(): string | null {
+  return localStorage.getItem("refresh_token");
+}
+
+// Helper function to check if user is authenticated
+export function isAuthenticated(): boolean {
+  return !!getAccessToken();
 }
 

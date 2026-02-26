@@ -13,12 +13,16 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { AuthProvider } from "@/contexts/auth-context";
 
 type ProvidersProps = {
   children: ReactNode;
 };
 
-// Backend removed - SessionProvider removed
 export function Providers({ children }: ProvidersProps) {
-  return <>{children}</>;
+  return (
+    <AuthProvider>
+      {children}
+    </AuthProvider>
+  );
 }

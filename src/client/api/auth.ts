@@ -182,16 +182,19 @@ export function googleRegisterApi(): void {
 
 // Helper function to get current access token
 export function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
   return localStorage.getItem("access_token");
 }
 
 // Helper function to get current refresh token
 export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
   return localStorage.getItem("refresh_token");
 }
 
 // Helper function to check if user is authenticated
 export function isAuthenticated(): boolean {
+  if (typeof window === 'undefined') return false;
   return !!getAccessToken();
 }
 

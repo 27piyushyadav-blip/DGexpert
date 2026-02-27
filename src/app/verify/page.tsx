@@ -36,11 +36,24 @@ export default function VerifyPage() {
         }, 2000);
       } catch (error) {
         if (error instanceof AuthError) {
-          setStatus("error");
-          setMessage(error.message);
-          toast.error("Verification failed", {
-            description: error.message,
-          });
+          // Check if it's a "already verified" or token used error
+          if (error.message.includes("already verified") || error.statusCode === 400) {
+            setStatus("success");
+            setMessage("Your email is already verified! You can now login.");
+            toast.success("Email verified!", {
+              description: "Your account is ready to use.",
+            });
+            // Redirect to login page after 2 seconds
+            setTimeout(() => {
+              router.push("/login");
+            }, 2000);
+          } else {
+            setStatus("error");
+            setMessage(error.message);
+            toast.error("Verification failed", {
+              description: error.message,
+            });
+          }
         } else {
           setStatus("error");
           setMessage("An unexpected error occurred");

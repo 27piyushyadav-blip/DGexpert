@@ -99,7 +99,7 @@ export function useRegisterForm() {
       toast.success("Account created!", { 
         description: "Check your email to verify your account" 
       });
-      router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+      router.push(`/check-email?email=${encodeURIComponent(values.email)}`);
     } catch (err: any) {
       if (err instanceof AuthError) {
         if (err.statusCode === 409) {

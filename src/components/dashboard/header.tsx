@@ -7,30 +7,68 @@ import { MobileSidebar } from "@/components/dashboard/mobile-sidebar";
 import { Brain, MessageSquare } from "lucide-react";
 import UnreadChatIndicator from "@/components/chat/UnreadChatIndicator";
 import { useEffect, useState } from "react";
+import { getExpertProfileApi, getExpertDashboardApi, ExpertError } from "@/client/api/expert";
 
-// Backend removed - component now uses mock data
 export default function Header() {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [totalUnread, setTotalUnread] = useState(0);
   const [isLive, setIsLive] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: string; title: string; description: string; type?: string; link?: string }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Mock user data from localStorage
-    const authUser = localStorage.getItem("auth_user");
-    if (authUser) {
+    const fetchUserData = async () => {
       try {
-        setUser(JSON.parse(authUser) as { name: string; email: string });
-      } catch (e) {
-        setUser({ name: "Demo User", email: "demo@example.com" });
+        setIsLoading(true);
+        
+        // Fetch expert profile and dashboard data
+        const [profileData, dashboardData] = await Promise.all([
+          getExpertProfileApi(),
+          getExpertDashboardApi()
+        ]);
+
+        // Set user data from profile
+        setUser({
+          name: profileData.name,
+          email: profileData.email
+        });
+
+        // Set verification status from dashboard
+        setIsLive(dashboardData.status === "LIVE");
+
+        // TODO: Implement notifications API when available
+        setNotifications([]);
+        setTotalUnread(0);
+
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+        
+        // Fallback to localStorage for basic auth info
+        const authUser = localStorage.getItem("auth_user");
+        if (authUser) {
+          try {
+            const parsedUser = JSON.parse(authUser);
+            setUser({ 
+              name: parsedUser.name || "Demo User", 
+              email: parsedUser.email || "demo@example.com" 
+            });
+          } catch (e) {
+            setUser({ name: "Demo User", email: "demo@example.com" });
+          }
+        } else {
+          setUser({ name: "Demo User", email: "demo@example.com" });
+        }
+        
+        // Default values for failed API calls
+        setIsLive(false);
+        setNotifications([]);
+        setTotalUnread(0);
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      setUser({ name: "Demo User", email: "demo@example.com" });
-    }
-    // Mock data
-    setTotalUnread(0);
-    setIsLive(false);
-    setNotifications([]);
+    };
+
+    fetchUserData();
   }, []);
 
   return (
@@ -56,7 +94,14 @@ export default function Header() {
 
         {/* Live Status */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-50 border border-zinc-100">
-          {isLive ? (
+          {isLoading ? (
+            <>
+              <div className="h-2 w-2 rounded-full bg-zinc-400 animate-pulse" />
+              <span className="text-xs font-medium text-zinc-600">
+                Loading...
+              </span>
+            </>
+          ) : isLive ? (
             <>
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

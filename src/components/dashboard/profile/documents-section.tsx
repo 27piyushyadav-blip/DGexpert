@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UploadButton } from "@/components/upload-button";
 import { FileText, FileImage, Trash2, ShieldCheck, AlertCircle, CloudUpload, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { uploadDocumentApi } from "@/client/api/expert";
 
 type FieldErrors = Record<string, string[] | string | undefined>;
 
@@ -46,6 +46,27 @@ export function DocumentsSection({ documents, setDocuments, errors = {} }: Docum
   const [isUploading, setIsUploading] = useState(false);
 
   const removeDoc = (index: number) => setDocuments(documents.filter((_, i) => i !== index));
+
+  const handleDocumentUpload = async (file: File) => {
+    if (!docName || !docCategory) {
+      toast.error("Please enter document title and select category");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const result = await uploadDocumentApi(file, docName, docCategory);
+      setDocuments([...documents, result.document]);
+      setDocName("");
+      setDocCategory("");
+      toast.success(result.message);
+    } catch (error) {
+      console.error("Document upload failed:", error);
+      toast.error("Failed to upload document");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const getFileIcon = (type?: string) => {
     // Handle legacy data safely
@@ -144,57 +165,34 @@ export function DocumentsSection({ documents, setDocuments, errors = {} }: Docum
                             "transition-all duration-300",
                             (!docName || !docCategory) ? "opacity-60 grayscale cursor-not-allowed" : "opacity-100"
                         )}>
-                            <UploadButton 
-                                endpoint="expertDocument" 
-                                onUploadBegin={() => setIsUploading(true)}
-                                onClientUploadComplete={(res) => {
-                                    if(res?.[0]) {
-                                        setDocuments([...documents, { 
-                                            title: docName, 
-                                            category: docCategory,
-                                            url: res[0].url, 
-                                            fileType: res[0].name.endsWith(".pdf") ? "pdf" : "image",
-                                            fileSize: (res[0].size / 1024 / 1024).toFixed(2) + " MB"
-                                        }]);
-                                        setDocName("");
-                                        setDocCategory("");
-                                        toast.success("Document attached successfully");
-                                    }
-                                    setIsUploading(false);
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    const input = document.createElement("input");
+                                    input.type = "file";
+                                    input.accept = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
+                                    input.onchange = () => {
+                                        const file = input.files?.[0];
+                                        if (file) {
+                                            handleDocumentUpload(file);
+                                        }
+                                    };
+                                    input.click();
                                 }}
-                                onUploadError={(error) => {
-                                    toast.error(`Upload failed: ${error.message}`);
-                                    setIsUploading(false);
-                                }}
-                                appearance={{
-                                    button: { 
-                                        width: "100%",
-                                        background: isUploading ? "#f4f4f5" : "#18181b", 
-                                        color: isUploading ? "#71717a" : "white", 
-                                        height: "48px",
-                                        fontSize: "14px",
-                                        fontWeight: "600",
-                                        borderRadius: "12px",
-                                        border: isUploading ? "1px solid #e4e4e7" : "none",
-                                        cursor: (!docName || !docCategory) ? "not-allowed" : "pointer"
-                                    },
-                                    container: { display: "block", width: "100%" },
-                                    allowedContent: { display: "none" } 
-                                }}
-                                content={{ 
-                                    button: isUploading ? (
-                                        <div className="flex items-center gap-2">
-                                            <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <CloudUpload className="h-4 w-4" /> 
-                                            {docName ? `Upload "${docName}"` : "Upload Document"}
-                                        </div>
-                                    ) 
-                                }}
-                                disabled={!docName || !docCategory}
-                            />
+                                disabled={!docName || !docCategory || isUploading}
+                                className="w-full h-12 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {isUploading ? (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <CloudUpload className="h-4 w-4" /> 
+                                        {docName ? `Upload "${docName}"` : "Upload Document"}
+                                    </div>
+                                )}
+                            </Button>
                         </div>
                         
                         {/* Tooltip */}

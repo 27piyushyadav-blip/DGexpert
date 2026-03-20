@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle, XCircle, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { verifyEmailApi, AuthError } from "@/client/api/auth";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -152,5 +152,20 @@ export default function VerifyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-dvh w-full bg-white items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-// Backend removed - component is now presentational
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -18,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { updateExpertProfileApi, ExpertError } from "@/client/api/expert";
 
 // Sub-components
 import { IdentitySection } from "./profile/identity-section";
@@ -89,6 +89,13 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
       ...live,
       ...draft,
 
+      introVideo: live.introVideo || draft.introVideo || "",
+      bio: live.bio || draft.bio || "",
+      specialization: live.specialization || draft.specialization || "",
+      experience: live.experience || draft.experience || 0,
+      consultationFee: live.consultationFee || draft.consultationFee || 0,
+      languages: live.languages || draft.languages || [],
+
       socialLinks: {
         linkedin: "",
         twitter: "",
@@ -99,14 +106,19 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
 
       workHistory: normalize(draft.workHistory || live.workHistory, {
         company: "",
+        position: "",
+        startDate: "",
+        endDate: "",
       }),
       education: normalize(draft.education || live.education, {
         institution: "",
+        degree: "",
+        fieldOfStudy: "",
+        year: "",
       }),
 
       services: draft.services || live.services || [],
       tags: draft.tags || live.tags || [],
-      languages: draft.languages || live.languages || [],
       documents: draft.documents || live.documents || [],
 
       availability:
@@ -129,14 +141,14 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
   const [userImage, setUserImage] = useState(draft.image || user.image || "");
   const [introVideo, setIntroVideo] = useState(expert.introVideo || "");
 
-  const [timezone, setTimezone] = useState(expert.timezone || "Australia/Sydney");
-  const [bio, setBio] = useState(expert.bio || "");
+  const [timezone, setTimezone] = useState(expert.fieldStatuses?.timezone?.value || expert.timezone || "Australia/Sydney");
+  const [bio, setBio] = useState(expert.fieldStatuses?.bio?.value || expert.bio || "");
   const [specialization, setSpecialization] = useState(
-    expert.specialization || ""
+    expert.fieldStatuses?.specialization?.value || expert.specialization || ""
   );
 
-  const [gender, setGender] = useState(expert.gender || "");
-  const [location, setLocation] = useState(expert.location || "");
+  const [gender, setGender] = useState(expert.fieldStatuses?.gender?.value || expert.gender || "");
+  const [location, setLocation] = useState(expert.fieldStatuses?.location?.value || expert.location || "");
   const [socialLinks, setSocialLinks] = useState(expert.socialLinks);
 
   const [tags, setTags] = useState(expert.tags);
@@ -169,7 +181,7 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
       leaves,
       bio,
       specialization,
-      timezone, // ⭐ Add this
+      timezone, // 
     ]
   );
 
@@ -190,38 +202,74 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
     setIsLoading(true);
     setErrors({});
 
-    const formData = new FormData();
+    try {
+      // Prepare data for API - send all supported fields
+      const profileData = {
+        bio: bio || undefined,
+        experience: 0, // TODO: Add experience field to form or calculate from workHistory
+        specialization: specialization || undefined,
+        consultationFee: 0, // TODO: Add consultation fee field to form
+        languages: languages || [],
+        education: education.map(edu => ({
+          degree: edu.degree || "",
+          fieldOfStudy: edu.fieldOfStudy || "",
+          institution: edu.institution || "",
+          year: edu.year || new Date().getFullYear()
+        })),
+        latestEducation: education.length > 0 ? education[education.length - 1]?.institution : null,
+        // Additional fields
+        timezone: timezone || undefined,
+        gender: gender || undefined,
+        location: location || undefined,
+        socialLinks: socialLinks || {},
+        tags: tags || [],
+        workHistory: workHistory || [],
+        services: services || [],
+        documents: documents || [],
+        availability: availability || [],
+        leaves: leaves || [],
+      };
 
-    // Identity
-    formData.set("name", userName);
-    formData.set("username", userUsername);
-    formData.set("image", userImage);
-    formData.set("introVideo", introVideo);
-    formData.set("timezone", timezone);
-    formData.set("gender", gender);
-    formData.set("location", location);
-    formData.set("linkedin", socialLinks.linkedin || "");
-    formData.set("twitter", socialLinks.twitter || "");
-    formData.set("website", socialLinks.website || "");
+      // Only send trackable fields if they actually changed
+      if (timezone === (expert.fieldStatuses?.timezone?.value || expert.timezone || "Australia/Sydney")) {
+        delete profileData.timezone;
+      }
+      if (gender === (expert.fieldStatuses?.gender?.value || expert.gender || "")) {
+        delete profileData.gender;
+      }
+      if (location === (expert.fieldStatuses?.location?.value || expert.location || "")) {
+        delete profileData.location;
+      }
+      if (bio === (expert.fieldStatuses?.bio?.value || expert.bio || "")) {
+        delete profileData.bio;
+      }
+      if (specialization === (expert.fieldStatuses?.specialization?.value || expert.specialization || "")) {
+        delete profileData.specialization;
+      }
 
-    // Controlled fields
-    formData.set("bio", bio);
-    formData.set("specialization", specialization);
+      // Remove undefined values
+      Object.keys(profileData).forEach(key => 
+        profileData[key as keyof typeof profileData] === undefined && delete profileData[key as keyof typeof profileData]
+      );
 
-    // JSON arrays
-    formData.set("tags", JSON.stringify(tags));
-    formData.set("workHistory", JSON.stringify(workHistory));
-    formData.set("education", JSON.stringify(education));
-    formData.set("services", JSON.stringify(services));
-    formData.set("documents", JSON.stringify(documents));
-    formData.set("availability", JSON.stringify(availability));
-    formData.set("leaves", JSON.stringify(leaves));
-    formData.set("languages", JSON.stringify(languages));
-
-    // Backend removed - UI-only submission
-    toast.success("Profile updated successfully");
-    setIsDirty(false);
-    setIsLoading(false);
+      const result = await updateExpertProfileApi(profileData);
+      
+      toast.success(result.message || "Profile updated successfully");
+      setIsDirty(false);
+      
+      // Optionally refresh the page data or update local state
+      // window.location.reload();
+      
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      if (error instanceof ExpertError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to update profile. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const hasError = (tab) =>
@@ -274,7 +322,12 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
                 image: userImage,
                 email: user.email,
               }}
-              expert={{ gender, location }}
+              expert={{ 
+                gender, 
+                location,
+                fieldStatuses: expert.fieldStatuses,
+                verificationStatus: expert.verificationStatus
+              }}
               socialLinks={socialLinks}
               setUserName={setUserName}
               setUserUsername={setUserUsername}
@@ -297,8 +350,8 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
               setEducation={setEducation}
               bio={bio}
               setBio={setBio}
-              introVideo={introVideo}    // ⭐ NEW
-     setIntroVideo={setIntroVideo} // ⭐ NEW
+              introVideo={introVideo}    
+     setIntroVideo={setIntroVideo} 
               specialization={specialization}
               setSpecialization={setSpecialization}
               errors={errors} // FIX: Pass errors
@@ -336,8 +389,8 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
               expert={expert}
               languages={languages}
               setLanguages={setLanguages}
-              timezone={timezone}          // ⭐ Pass state down
-              setTimezone={setTimezone}    // ⭐ Allow editing
+              timezone={timezone}          
+              setTimezone={setTimezone}    
               errors={errors}
             />
           </TabsContent>

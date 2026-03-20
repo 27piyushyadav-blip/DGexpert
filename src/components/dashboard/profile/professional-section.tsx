@@ -12,11 +12,12 @@ import { TagInput } from "@/components/ui/tag-input";
 import { cn } from "@/lib/utils";
 import { 
     Video, Play,  Loader2, Info, 
-    UploadCloud, CheckCircle2, RefreshCw, X
+    UploadCloud, CheckCircle2, RefreshCw, X, Clock, CheckCircle
   } from "lucide-react";
   // Backend removed - uploadthing removed
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { uploadIntroVideoApi } from "@/client/api/expert";
 
 type WorkHistoryItem = {
   company: string;
@@ -38,7 +39,7 @@ type EducationItem = {
 type FieldErrors = Record<string, string[] | undefined>;
 
 type ProfessionalSectionProps = {
-  expert?: unknown;
+  expert?: any;
   tags?: string[];
   setTags: React.Dispatch<React.SetStateAction<string[]>> | ((next: string[]) => void);
   workHistory?: WorkHistoryItem[];
@@ -66,13 +67,31 @@ export function ProfessionalSection({
     education = [], setEducation, 
     bio, setBio, 
     specialization, setSpecialization, 
-    introVideo, setIntroVideo, // ⭐ NEW
+    introVideo, setIntroVideo, // 
     errors = {} 
 }: ProfessionalSectionProps) {
 
     const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  
+
+  const handleIntroVideoUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      setUploadProgress(30);
+      const result = await uploadIntroVideoApi(file);
+      setUploadProgress(80);
+      setIntroVideo(result.fileUrl);
+      setUploadProgress(100);
+      toast.success(result.message);
+    } catch (error) {
+      console.error("Intro video upload failed:", error);
+      toast.error("Failed to upload intro video");
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  };
+
   // --- HELPERS ---
   const addJob = () =>
     setWorkHistory([
@@ -138,7 +157,11 @@ export function ProfessionalSection({
             {/* Headline - FIXED: Changed to Controlled Input */}
             <div className="space-y-2">
                 <div className="flex justify-between">
-                    <Label className={cn("text-xs font-bold uppercase tracking-wide", errors.specialization ? "text-red-600" : "text-zinc-500")}>Headline</Label>
+                    <Label className={cn("text-xs font-bold uppercase tracking-wide flex items-center", errors.specialization ? "text-red-600" : "text-zinc-500")}>
+                        Headline
+                        {expert?.fieldStatuses?.specialization?.status === 'pending' && <span title="Pending verification" className="flex items-center"><Clock className="w-3 h-3 ml-2 text-amber-500" /></span>}
+                        {expert?.fieldStatuses?.specialization?.status === 'approved' && <span title="Verified" className="flex items-center"><CheckCircle className="w-3 h-3 ml-2 text-green-500" /></span>}
+                    </Label>
                     {errors.specialization && <span className="text-xs text-red-600 font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3"/> {errors.specialization[0]}</span>}
                 </div>
                 <Input 
@@ -153,7 +176,11 @@ export function ProfessionalSection({
             {/* Bio - FIXED: Changed to Controlled Textarea */}
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                    <Label className={cn("text-xs font-bold uppercase tracking-wide", errors.bio ? "text-red-600" : "text-zinc-500")}>About You</Label>
+                    <Label className={cn("text-xs font-bold uppercase tracking-wide flex items-center", errors.bio ? "text-red-600" : "text-zinc-500")}>
+                        About You
+                        {expert?.fieldStatuses?.bio?.status === 'pending' && <span title="Pending verification" className="flex items-center"><Clock className="w-3 h-3 ml-2 text-amber-500" /></span>}
+                        {expert?.fieldStatuses?.bio?.status === 'approved' && <span title="Verified" className="flex items-center"><CheckCircle className="w-3 h-3 ml-2 text-green-500" /></span>}
+                    </Label>
                     {errors.bio && <span className="text-xs text-red-600 font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3"/> {errors.bio[0]}</span>}
                 </div>
                 <Textarea 
@@ -249,15 +276,7 @@ export function ProfessionalSection({
                                 input.onchange = () => {
                                     const file = input.files?.[0];
                                     if (file) {
-                                        setIsUploading(true);
-                                        setUploadProgress(50);
-                                        setTimeout(() => {
-                                            const url = URL.createObjectURL(file);
-                                            setIntroVideo(url);
-                                            setIsUploading(false);
-                                            setUploadProgress(0);
-                                            toast.success("Video ready! Preview it on the left.");
-                                        }, 1000);
+                                        handleIntroVideoUpload(file);
                                     }
                                 };
                                 input.click();

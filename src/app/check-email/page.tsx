@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight, Brain, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -98,7 +98,7 @@ export default function CheckEmailPage() {
                 <h3 className="text-sm font-medium text-blue-900">What's next?</h3>
                 <div className="mt-2 text-sm text-blue-700">
                   <ol className="list-decimal list-inside space-y-1">
-                    <li>Check your inbox for the verification email</li>
+                    <li>Check your inbox for verification email</li>
                     <li>Click the verification link in the email</li>
                     <li>Return here to login to your account</li>
                   </ol>
@@ -140,5 +140,20 @@ export default function CheckEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-dvh w-full bg-white items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CheckEmailContent />
+    </Suspense>
   );
 }

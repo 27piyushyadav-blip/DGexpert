@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 import ProfileImage from "@/components/ProfileImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// Backend removed - actions and socket removed
-// Backend removed - uploadthing removed
+import { io, Socket } from "socket.io-client";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
 
 type ChatUser = {
   _id: string;
@@ -138,8 +139,9 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const mimeTypeRef = useRef("audio/webm");
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Backend removed - socket removed
-  const socket = null;
+  // Socket connection
+  const socketRef = useRef<Socket | null>(null);
+  const socket = socketRef.current;
 
   const sortedInitial: Conversation[] = [...(initialConversations as Conversation[])].sort(
     (a, b) => new Date(b.lastMessageAt as any).getTime() - new Date(a.lastMessageAt as any).getTime()
@@ -168,10 +170,29 @@ export default function ChatClient({ initialConversations, currentUser }) {
     lastSeen: null,
   });
 
-  // Backend removed - mock upload function
+  // Mock upload function (for local previews)
   const startUpload = async (files: File[]) => {
     return files.map((file) => ({ url: URL.createObjectURL(file), name: file.name }));
   };
+
+  // ===== SOCKET CONNECTION =====
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    const s = io(`${API_BASE}/chat`, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+
+    s.on("connect", () => console.log("[Chat] Socket connected:", s.id));
+    s.on("disconnect", () => console.log("[Chat] Socket disconnected"));
+    s.on("connect_error", (err) => console.error("[Chat] Socket error:", err.message));
+
+    socketRef.current = s;
+
+    return () => { s.disconnect(); socketRef.current = null; };
+  }, []);
 
   const selectedConversation = conversations.find(
     (c) => c._id === selectedConversationId
@@ -267,7 +288,19 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    // Backend removed - typing indicators removed
+    if (socketRef.current && selectedConversationId && remoteUser?._id) {
+      socketRef.current.emit("typing-start", {
+        conversationId: selectedConversationId,
+        recipientId: remoteUser._id,
+      });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socketRef.current?.emit("typing-stop", {
+          conversationId: selectedConversationId,
+          recipientId: remoteUser._id,
+        });
+      }, 2000);
+    }
   };
 
   const onUserStatusChanged = useCallback(({ userId, isOnline, lastSeen }) => {
@@ -501,10 +534,14 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const sendMessageSocket = (content, contentType = "text") => {
     if (!selectedConversationId || !remoteUser?._id) return;
 
-    // ✅ Play Send Sound
     sendSoundRef.current?.play().catch(e => console.log("Audio play blocked", e));
 
-    // Backend removed - message sending removed
+    socketRef.current?.emit("send-message", {
+      conversationId: selectedConversationId,
+      content,
+      contentType,
+      recipientId: remoteUser._id,
+    });
   };
 
 
@@ -650,17 +687,18 @@ export default function ChatClient({ initialConversations, currentUser }) {
   const onConversationUpdated = useCallback((updatedConvo) => { updateChatList(updatedConvo); }, [updateChatList]);
 
   useEffect(() => {
-    if (!selectedConversationId || !socket) return;
+    if (!selectedConversationId) return;
   
     initialScrollDone.current = false;
     isInitialLoadPhase.current = true;
     setChatOpacity(0);
   
     setTimeout(() => { isInitialLoadPhase.current = false; }, 2000);
-  
-    // Backend removed - socket calls removed
-    
-    // 2. IMMEDIATELY clear unread count in local state
+
+    // Join conversation room via socket
+    socketRef.current?.emit("join-conversation", { conversationId: selectedConversationId });
+
+    // Clear unread count in local state
     setConversations(prev =>
       prev.map(c =>
         c._id === selectedConversationId
@@ -671,22 +709,54 @@ export default function ChatClient({ initialConversations, currentUser }) {
   
     setIsTyping(false);
   
-    // Backend removed - fetch messages removed
+    // Fetch messages via REST
+    const token = localStorage.getItem("access_token");
     startMessagesTransition(async () => {
-      setMessages([]);
-      // Mock empty messages
-      setMessages([]);
+      try {
+        const res = await fetch(`${API_BASE}/chat/${selectedConversationId}/messages?page=1&limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setMessages(data.messages || []);
+      } catch (err) {
+        console.error("Failed to load messages:", err);
+        setMessages([]);
+      }
     });
-  
-  }, [selectedConversationId, currentUser.id, socket, remoteUser?._id]);
 
+    return () => {
+      socketRef.current?.emit("leave-conversation", { conversationId: selectedConversationId });
+    };
+  }, [selectedConversationId, currentUser.id, remoteUser?._id]);
 
+  // ===== SOCKET EVENT LISTENERS =====
+  useEffect(() => {
+    const s = socketRef.current;
+    if (!s) return;
 
-  // Backend removed - socket event listeners removed
+    const handleNewMessage = (message: any) => {
+      onReceiveMessage(message);
+    };
 
-  // Backend removed - presence updates removed
+    const handleTypingEvent = (data: any) => {
+      if (data.isTyping) onTyping(data);
+      else onStopTyping(data);
+    };
 
-  // Backend removed - direct message listener removed
+    const handleMessagesRead = (data: any) => {
+      onMessagesRead(data);
+    };
+
+    s.on("new-message", handleNewMessage);
+    s.on("user-typing", handleTypingEvent);
+    s.on("messages-read", handleMessagesRead);
+
+    return () => {
+      s.off("new-message", handleNewMessage);
+      s.off("user-typing", handleTypingEvent);
+      s.off("messages-read", handleMessagesRead);
+    };
+  }, [onReceiveMessage, onTyping, onStopTyping, onMessagesRead]);
 
 
   useLayoutEffect(() => { if (messages.length > 0 && messagesContainerRef.current && !isMessagesPending) { const container = messagesContainerRef.current; if (!initialScrollDone.current) { container.scrollTop = container.scrollHeight; initialScrollDone.current = true; setChatOpacity(1); } else { const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150; if (isNearBottom) { container.scrollTo({ top: container.scrollHeight, behavior: "auto" }); } } } else if (messages.length === 0 && !isMessagesPending) { setChatOpacity(1); } }, [messages, isMessagesPending]);

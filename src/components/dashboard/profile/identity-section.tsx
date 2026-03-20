@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UploadButton } from "@/components/upload-button";
-import { User, Wand2, AtSign, MapPin, Camera, Sparkles, Globe, Mail, Linkedin, Twitter, Link as LinkIcon, AlertCircle, Loader2 } from "lucide-react";
+import { User, Wand2, AtSign, MapPin, Camera, Sparkles, Globe, Mail, Linkedin, Twitter, Link as LinkIcon, AlertCircle, Loader2, Clock, CheckCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { uploadProfileImageApi } from "@/client/api/expert";
 
 type FieldErrors = Record<string, string[] | undefined>;
 
@@ -24,6 +25,8 @@ type UserInfo = {
 type ExpertIdentity = {
   gender?: string;
   location?: string;
+  fieldStatuses?: Record<string, { value: any; status: string }>;
+  verificationStatus?: string;
 };
 
 type SocialLinks = {
@@ -59,24 +62,37 @@ export function IdentitySection({
   setSocialLinks,
   errors = {},
 }: IdentitySectionProps) {
-    const [isHovered, setIsHovered] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-    const generateUsername = () => {
-        if (!user.name) return toast.error("Please enter your name first.");
-        const random = Math.floor(Math.random() * 1000);
-        const slug = user.name.toLowerCase().replace(/[^a-z0-9]/g, '') + random;
-        setUserUsername(slug);
-        toast.success("New username generated!");
-    };
+  const generateUsername = () => {
+    if (!user.name) return toast.error("Please enter your name first.");
+    const random = Math.floor(Math.random() * 1000);
+    const slug = user.name.toLowerCase().replace(/[^a-z0-9]/g, '') + random;
+    setUserUsername(slug);
+    toast.success("New username generated!");
+  };
 
-    const updateSocial = (key: keyof SocialLinks, val: string) => {
-        setSocialLinks({ ...(socialLinks ?? {}), [key]: val });
-    };
+  const handleProfileImageUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const result = await uploadProfileImageApi(file);
+      setUserImage(result.fileUrl);
+      toast.success(result.message);
+    } catch (error) {
+      console.error("Profile image upload failed:", error);
+      toast.error("Failed to upload profile image");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
+  const updateSocial = (key: keyof SocialLinks, val: string) => {
+    setSocialLinks({ ...(socialLinks ?? {}), [key]: val });
+  };
 
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
             {/* --- LEFT: LIVE PREVIEW --- */}
             <div className="lg:col-span-4 space-y-6">
                 <div className="sticky top-24">
@@ -112,27 +128,16 @@ export function IdentitySection({
                                             
                                             {/* Upload Button Container */}
                                             <div className="absolute inset-0 w-full h-full opacity-0 cursor-pointer overflow-hidden rounded-full">
-                                                <UploadButton
-                                                    endpoint="profilePicture"
-                                                    onUploadBegin={() => {
-                                                        setIsUploading(true);
-                                                    }}
-                                                    onClientUploadComplete={(res) => {
-                                                        setIsUploading(false);
-                                                        if (res?.[0]) {
-                                                            setUserImage(res[0].url);
-                                                            toast.success("Profile photo updated");
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            handleProfileImageUpload(file);
                                                         }
                                                     }}
-                                                    onUploadError={(error) => {
-                                                        setIsUploading(false);
-                                                        toast.error(`Upload failed: ${error.message}`);
-                                                    }}
-                                                    appearance={{
-                                                        button: { width: '100%', height: '100%', cursor: 'pointer' },
-                                                        container: { width: '100%', height: '100%' },
-                                                        allowedContent: { display: 'none' }
-                                                    }}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                 />
                                             </div>
                                         </>
@@ -222,7 +227,11 @@ export function IdentitySection({
                             {/* Location Input */}
                             <div className="space-y-2">
                                 <div className="flex justify-between">
-                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider", errors.location ? "text-red-600" : "text-zinc-500")}>Location</Label>
+                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider flex items-center", errors.location ? "text-red-600" : "text-zinc-500")}>
+                                        Location
+                                        {expert?.fieldStatuses?.location?.status === 'pending' && <span title="Pending verification" className="flex items-center"><Clock className="w-3 h-3 ml-2 text-amber-500" /></span>}
+                                        {expert?.fieldStatuses?.location?.status === 'approved' && <span title="Verified" className="flex items-center"><CheckCircle className="w-3 h-3 ml-2 text-green-500" /></span>}
+                                    </Label>
                                     {errors.location && <span className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.location[0]}</span>}
                                 </div>
                                 <div className="relative">
@@ -240,7 +249,11 @@ export function IdentitySection({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <div className="flex justify-between">
-                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider", errors.gender ? "text-red-600" : "text-zinc-500")}>Gender</Label>
+                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider flex items-center", errors.gender ? "text-red-600" : "text-zinc-500")}>
+                                        Gender
+                                        {expert?.fieldStatuses?.gender?.status === 'pending' && <span title="Pending verification" className="flex items-center"><Clock className="w-3 h-3 ml-2 text-amber-500" /></span>}
+                                        {expert?.fieldStatuses?.gender?.status === 'approved' && <span title="Verified" className="flex items-center"><CheckCircle className="w-3 h-3 ml-2 text-green-500" /></span>}
+                                    </Label>
                                     {errors.gender && <span className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.gender[0]}</span>}
                                 </div>
                                 <Select value={expert?.gender || ""} onValueChange={setGender}>

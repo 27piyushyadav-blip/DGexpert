@@ -25,6 +25,12 @@ const nextConfig = {
         protocol: "https",
         hostname: "ui-avatars.com", // [!code ++] Added for registration avatars
       },
+      // ✅ Allow backend local image uploads
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "3000",
+      },
     ],
   },
   // Preserving your specific cloud environment origin

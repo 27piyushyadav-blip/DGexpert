@@ -36,12 +36,17 @@ export default function ChatPage() {
     let user: UserData;
     try {
       const parsed = JSON.parse(authUser || "{}");
+      console.log("🔥 Expert Page - Raw auth_user data:", authUser);
+      console.log("🔥 Expert Page - Parsed user data:", parsed);
+      
       user = {
         ...parsed,
-        id: parsed.id || "unknown",
+        id: parsed.id || parsed._id || parsed.expertId || "unknown", // Try multiple ID fields
         role: "expert",
         isOnline: true,
       };
+      
+      console.log("🔥 Expert Page - Final user object:", user);
     } catch {
       user = { id: "unknown", name: "Expert", email: "", role: "expert", isOnline: true };
     }
@@ -53,6 +58,21 @@ export default function ChatPage() {
     })
       .then((r) => r.json())
       .then((data) => {
+        console.log("🔥 Expert Page - Conversations loaded:", data.conversations);
+        
+        // If user ID is still "unknown", try to get it from conversations
+        if (user.id === "unknown" && data.conversations && data.conversations.length > 0) {
+          const firstConversation = data.conversations[0];
+          console.log("🔥 Expert Page - First conversation:", firstConversation);
+          
+          // For expert, the ID should be in expertId field
+          if ((firstConversation as any).expertId) {
+            user.id = (firstConversation as any).expertId;
+            console.log("🔥 Expert Page - Updated user ID from conversation expertId:", user.id);
+            setCurrentUser(user); // Update with correct ID
+          }
+        }
+        
         setConversations(data.conversations || []);
       })
       .catch(console.error)

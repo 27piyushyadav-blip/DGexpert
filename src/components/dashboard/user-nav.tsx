@@ -22,8 +22,8 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 export function UserNav({ user: initialUser }) {
   const router = useRouter();
 
-  // Backend removed - using prop user only
-  const user = initialUser || { name: "Demo User", email: "demo@example.com" };
+  // Only show real user data, no demo fallback
+  const user = initialUser;
 
   const handleLogout = async () => {
     toast.info("Signing out...");

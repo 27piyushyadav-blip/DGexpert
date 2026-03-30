@@ -43,23 +43,8 @@ export default function Header() {
       } catch (error) {
         console.error("Failed to fetch user data:", error);
         
-        // Fallback to localStorage for basic auth info
-        const authUser = localStorage.getItem("auth_user");
-        if (authUser) {
-          try {
-            const parsedUser = JSON.parse(authUser);
-            setUser({ 
-              name: parsedUser.name || "Demo User", 
-              email: parsedUser.email || "demo@example.com" 
-            });
-          } catch (e) {
-            setUser({ name: "Demo User", email: "demo@example.com" });
-          }
-        } else {
-          setUser({ name: "Demo User", email: "demo@example.com" });
-        }
-        
-        // Default values for failed API calls
+        // Don't show demo data - just set default values
+        setUser(null);
         setIsLive(false);
         setNotifications([]);
         setTotalUnread(0);

@@ -172,7 +172,7 @@ export async function resetPasswordApi(token: string, password: string): Promise
 
 // 8. Google Login (redirect to Google)
 export function googleLoginApi(): void {
-  window.location.href = `${BASE_URL}/google`;
+  window.location.href = `${BASE_URL}/google?state=expert`;
 }
 
 // Google Register (same as Google Login for this API)

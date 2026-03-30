@@ -25,6 +25,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "ui-avatars.com", // [!code ++] Added for registration avatars
       },
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com", // Added for dicebear avatars
+      },
       // ✅ Allow backend local image uploads
       {
         protocol: "http",

@@ -38,12 +38,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       try {
         if (isAuthenticated()) {
-          // User has tokens, consider them authenticated
-          // You might want to validate the token with the backend here
-          setUser({ 
-            id: "authenticated", 
-            email: "user@example.com" 
-          });
+          // Extract user info from JWT token
+          const accessToken = getAccessToken();
+          if (accessToken) {
+            try {
+              const payload = JSON.parse(atob(accessToken.split('.')[1]));
+              setUser({ 
+                id: payload.sub || "authenticated", 
+                name: payload.name || "User",
+                email: payload.email || "user@example.com",
+                provider: "google" as const,
+                role: payload.role || "expert"
+              });
+            } catch (e) {
+              // Fallback if JWT parsing fails
+              setUser({ 
+                id: "authenticated", 
+                email: "user@example.com" 
+              });
+            }
+          }
         }
       } catch (error) {
         console.error("Auth check failed:", error);
@@ -59,10 +73,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       await loginUserApi({ identifier, password });
-      setUser({ 
-        id: "authenticated", 
-        email: identifier 
-      });
+      
+      // Extract user info from the stored access token
+      const accessToken = getAccessToken();
+      if (accessToken) {
+        try {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          setUser({ 
+            id: payload.sub || "authenticated", 
+            name: payload.name || identifier.split('@')[0],
+            email: identifier,
+            provider: "credentials" as const,
+            role: payload.role || "expert"
+          });
+        } catch (e) {
+          // Fallback if JWT parsing fails
+          setUser({ 
+            id: "authenticated", 
+            name: identifier.split('@')[0],
+            email: identifier 
+          });
+        }
+      }
     } catch (error) {
       if (error instanceof AuthError) {
         throw error;

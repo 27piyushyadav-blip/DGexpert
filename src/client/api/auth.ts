@@ -19,7 +19,7 @@
 // src/client/api/auth.ts
 
 
-const BASE_URL = "http://localhost:3000/auth/expert";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/auth/expert";
 
 // Types for API responses
 type AuthResponse = {

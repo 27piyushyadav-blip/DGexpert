@@ -1,4 +1,4 @@
-const BASE_URL = process.env.API_BASE_URL || "http://localhost:3000/experts";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/experts";
 
 // Types for API responses
 type ExpertProfileResponse = {

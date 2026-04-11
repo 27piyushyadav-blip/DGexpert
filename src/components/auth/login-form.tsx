@@ -27,7 +27,7 @@ type FormValues = z.infer<typeof formSchema>;
 const LoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") || "/";
+  const callbackUrl = searchParams?.get("callbackUrl") || "/profile";
   const { login } = useAuth();
 
   const [loadingType, setLoadingType] = useState<"google" | "credentials" | null>(null);

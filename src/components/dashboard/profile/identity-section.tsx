@@ -188,7 +188,11 @@ export function IdentitySection({
                             {/* Name Input */}
                             <div className="space-y-2">
                                 <div className="flex justify-between">
-                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider", errors.name ? "text-red-600" : "text-zinc-500")}>Full Name</Label>
+                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider flex items-center", errors.name ? "text-red-600" : "text-zinc-500")}>
+                                        Full Name
+                                        {expert?.fieldStatuses?.name?.status === 'pending' && <span title="Pending verification" className="flex items-center"><Clock className="w-3 h-3 ml-2 text-amber-500" /></span>}
+                                        {expert?.fieldStatuses?.name?.status === 'approved' && <span title="Verified" className="flex items-center"><CheckCircle className="w-3 h-3 ml-2 text-green-500" /></span>}
+                                    </Label>
                                     {errors.name && <span className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.name[0]}</span>}
                                 </div>
                                 <Input
@@ -202,7 +206,11 @@ export function IdentitySection({
                             {/* Username Input */}
                             <div className="space-y-2">
                                 <div className="flex justify-between">
-                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider", errors.username ? "text-red-600" : "text-zinc-500")}>Username</Label>
+                                    <Label className={cn("text-xs font-semibold uppercase tracking-wider flex items-center", errors.username ? "text-red-600" : "text-zinc-500")}>
+                                        Username
+                                        {expert?.fieldStatuses?.username?.status === 'pending' && <span title="Pending verification" className="flex items-center"><Clock className="w-3 h-3 ml-2 text-amber-500" /></span>}
+                                        {expert?.fieldStatuses?.username?.status === 'approved' && <span title="Verified" className="flex items-center"><CheckCircle className="w-3 h-3 ml-2 text-green-500" /></span>}
+                                    </Label>
                                     {errors.username && <span className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.username[0]}</span>}
                                 </div>
                                 <div className="relative flex items-center">

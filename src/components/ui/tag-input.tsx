@@ -16,15 +16,27 @@ type TagInputProps = {
 export function TagInput({ placeholder, tags, setTags, className }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const newTag = inputValue.trim();
-      if (newTag && !tags.includes(newTag)) {
-        setTags([...tags, newTag]);
-        setInputValue("");
-      }
+  const addTag = (val: string) => {
+    const newTags = val
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t && !tags.includes(t));
+    
+    if (newTags.length > 0) {
+      setTags([...tags, ...newTags]);
     }
+    setInputValue("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(inputValue);
+    }
+  };
+
+  const handleBlur = () => {
+    addTag(inputValue);
   };
 
   const removeTag = (tagToRemove: string) => {
@@ -38,10 +50,11 @@ export function TagInput({ placeholder, tags, setTags, className }: TagInputProp
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         className="bg-white"
       />
       <div className="flex flex-wrap gap-2">
-        {tags.map((tag: string) => (
+        {(Array.isArray(tags) ? tags : []).map((tag: string) => (
           <Badge key={tag} variant="secondary" className="px-3 py-1 text-sm bg-zinc-100 text-zinc-800 hover:bg-zinc-200">
             {tag}
             <button

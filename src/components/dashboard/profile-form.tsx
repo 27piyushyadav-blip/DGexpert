@@ -50,6 +50,12 @@ const FIELD_TO_TAB = {
   timezone: "settings",
 };
 
+const normalizeArray = (d: any) => {
+  if (Array.isArray(d)) return d;
+  if (typeof d === "string") return d.split(",").map(t => t.trim()).filter(Boolean);
+  return [];
+};
+
 export default function ProfileForm({ initialData, isPending, initialTab }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -65,7 +71,7 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
   // 2. DATA NORMALIZATION
   // ----------------------------
   const expert = useMemo(() => {
-    const normalize = (d, def) =>
+    const normalize = (d: any, def: any) =>
       Array.isArray(d)
         ? d
         : typeof d === "string"
@@ -94,7 +100,7 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
       specialization: live.specialization || draft.specialization || "",
       experience: live.experience || draft.experience || 0,
       consultationFee: live.consultationFee || draft.consultationFee || 0,
-      languages: live.languages || draft.languages || [],
+      languages: normalizeArray(live.languages || draft.languages),
 
       socialLinks: {
         linkedin: "",
@@ -106,19 +112,22 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
 
       workHistory: normalize(draft.workHistory || live.workHistory, {
         company: "",
-        position: "",
+        role: "",
         startDate: "",
         endDate: "",
-      }),
+        current: false,
+      }) || [],
       education: normalize(draft.education || live.education, {
         institution: "",
         degree: "",
         fieldOfStudy: "",
-        year: "",
-      }),
+        startDate: "",
+        endDate: "",
+        current: false,
+      }) || [],
 
       services: draft.services || live.services || [],
-      tags: draft.tags || live.tags || [],
+      tags: normalizeArray(live.tags || draft.tags),
       documents: draft.documents || live.documents || [],
 
       availability:
@@ -151,12 +160,12 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
   const [location, setLocation] = useState(expert.fieldStatuses?.location?.value || expert.location || "");
   const [socialLinks, setSocialLinks] = useState(expert.socialLinks);
 
-  const [tags, setTags] = useState(expert.tags);
+  const [tags, setTags] = useState(normalizeArray(expert.fieldStatuses?.tags?.value || expert.tags));
   const [workHistory, setWorkHistory] = useState(expert.workHistory);
   const [education, setEducation] = useState(expert.education);
   const [services, setServices] = useState(expert.services);
   const [documents, setDocuments] = useState(expert.documents);
-  const [languages, setLanguages] = useState(expert.languages);
+  const [languages, setLanguages] = useState(normalizeArray(expert.fieldStatuses?.languages?.value || expert.languages));
   const [availability, setAvailability] = useState(expert.availability);
   const [leaves, setLeaves] = useState(expert.leaves);
 
@@ -205,25 +214,29 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
     try {
       // Prepare data for API - send all supported fields
       const profileData = {
+        name: userName || undefined,
+        username: userUsername || undefined,
         bio: bio || undefined,
         experience: 0, // TODO: Add experience field to form or calculate from workHistory
         specialization: specialization || undefined,
         consultationFee: 0, // TODO: Add consultation fee field to form
-        languages: languages || [],
-        education: education.map(edu => ({
+        education: (education || []).map(edu => ({
           degree: edu.degree || "",
           fieldOfStudy: edu.fieldOfStudy || "",
           institution: edu.institution || "",
-          year: edu.year || new Date().getFullYear()
+          startDate: edu.startDate || "",
+          endDate: edu.endDate || "",
+          current: !!edu.current
         })),
+        languages: Array.isArray(languages) ? languages : (typeof languages === 'string' ? languages.split(',').map(t => t.trim()).filter(Boolean) : []),
         latestEducation: education.length > 0 ? education[education.length - 1]?.institution : null,
         // Additional fields
         timezone: timezone || undefined,
         gender: gender || undefined,
         location: location || undefined,
         socialLinks: socialLinks || {},
-        tags: tags || [],
-        workHistory: workHistory || [],
+        tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+        workHistory: Array.isArray(workHistory) ? workHistory : [],
         services: services || [],
         documents: documents || [],
         availability: availability || [],
@@ -231,6 +244,12 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
       };
 
       // Only send trackable fields if they actually changed
+      if (userName === (draft.name || user.name || "")) {
+        delete profileData.name;
+      }
+      if (userUsername === (draft.username || user.username || "")) {
+        delete profileData.username;
+      }
       if (timezone === (expert.fieldStatuses?.timezone?.value || expert.timezone || "Australia/Sydney")) {
         delete profileData.timezone;
       }

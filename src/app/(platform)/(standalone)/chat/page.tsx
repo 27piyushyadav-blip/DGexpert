@@ -7,6 +7,7 @@
 
 import ChatClient from "@/components/chat/ChatClient";
 import { useEffect, useState } from "react";
+import { apiClient } from "@/client/api/api-client";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
 
@@ -24,13 +25,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
     const authUser = localStorage.getItem("auth_user");
-
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
 
     // Parse current user
     let user: UserData;
@@ -53,10 +48,7 @@ export default function ChatPage() {
     setCurrentUser(user);
 
     // Fetch conversations
-    fetch(`${API_BASE}/chat/conversations?userType=expert`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    apiClient<any>(`${API_BASE}/chat/conversations?userType=expert`)
       .then((data) => {
         console.log("🔥 Expert Page - Conversations loaded:", data.conversations);
         

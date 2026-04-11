@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { io, Socket } from "socket.io-client";
+import { apiClient } from "@/client/api/api-client";
+import { getAccessToken } from "@/client/api/auth";
 
 
 
@@ -364,7 +366,7 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
   useEffect(() => {
 
-    const token = localStorage.getItem("access_token");
+    const token = getAccessToken();
 
     if (!token) return;
 
@@ -1430,20 +1432,9 @@ export default function ChatClient({ initialConversations, currentUser }) {
 
     // Fetch messages via REST
 
-    const token = localStorage.getItem("access_token");
-
     startMessagesTransition(async () => {
-
       try {
-
-        const res = await fetch(`${API_BASE}/chat/${selectedConversationId}/messages?page=1&limit=100`, {
-
-          headers: { Authorization: `Bearer ${token}` },
-
-        });
-
-        const data = await res.json();
-
+        const data = await apiClient<any>(`${API_BASE}/chat/${selectedConversationId}/messages?page=1&limit=100`);
         setMessages(data.messages || []);
 
         

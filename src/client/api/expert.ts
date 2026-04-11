@@ -1,7 +1,11 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/experts";
+import { apiClient, ApiError as ExpertError } from "./api-client";
+export { ExpertError };
+
+// const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/experts";
+const BASE_URL = "http://localhost:3000/experts";
 
 // Types for API responses
-type ExpertProfileResponse = {
+export type ExpertProfileResponse = {
   id: string;
   name: string;
   email: string;
@@ -58,6 +62,7 @@ type ExpertProfileResponse = {
     dayOfWeek: string;
     startTime: string;
     endTime: string;
+    enabled?: boolean;
   }>;
   leaves: Array<{
     date: string | Date;
@@ -67,7 +72,7 @@ type ExpertProfileResponse = {
   fieldStatuses?: Record<string, { value: any; status: string }>;
 };
 
-type DashboardResponse = {
+export type DashboardResponse = {
   todayBookings: number;
   upcomingBookings: number;
   completedSessions: number;
@@ -80,82 +85,31 @@ type DashboardResponse = {
   };
 };
 
-type UpdateProfileResponse = {
+export type UpdateProfileResponse = {
   message: string;
   status: string;
   profile?: ExpertProfileResponse;
 };
 
-type FileUploadResponse = {
+export type FileUploadResponse = {
   message: string;
   fileUrl: string;
   status: string;
 };
 
-// API Error handler
-export class ExpertError extends Error {
-  statusCode: number;
-
-  constructor(message: string, statusCode: number = 500) {
-    super(message);
-    this.statusCode = statusCode;
-  }
-}
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  const data = await response.json();
-  
-  if (!response.ok) {
-    throw new ExpertError(data.message || 'Request failed', response.status);
-  }
-  
-  return data;
-}
-
-// Helper function to get auth headers
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem("access_token");
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  
-  return headers;
-}
-
 // 1. Get Expert Profile
 export async function getExpertProfileApi(): Promise<ExpertProfileResponse> {
-  const response = await fetch(`${BASE_URL}/profile`, {
+  return apiClient<ExpertProfileResponse>(`${BASE_URL}/profile`, {
     method: "GET",
-    headers: getAuthHeaders(),
   });
-
-  return handleResponse<ExpertProfileResponse>(response);
 }
 
 // 2. Update Expert Profile
-export async function updateExpertProfileApi(data: {
-  bio?: string;
-  experience?: number;
-  specialization?: string;
-  consultationFee?: number;
-  languages?: string[];
-  education?: Array<{
-    degree: string;
-    fieldOfStudy: string;
-    institution: string;
-    year: number;
-  }>;
-  latestEducation?: string;
-}): Promise<UpdateProfileResponse> {
-  const response = await fetch(`${BASE_URL}/profile`, {
+export async function updateExpertProfileApi(data: any): Promise<UpdateProfileResponse> {
+  return apiClient<UpdateProfileResponse>(`${BASE_URL}/profile`, {
     method: "PUT",
-    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-
-  return handleResponse<UpdateProfileResponse>(response);
 }
 
 // 3. Upload Profile Image
@@ -163,20 +117,10 @@ export async function uploadProfileImageApi(file: File): Promise<FileUploadRespo
   const formData = new FormData();
   formData.append("file", file);
 
-  const token = localStorage.getItem("access_token");
-  const headers: Record<string, string> = {};
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${BASE_URL}/profile/image`, {
+  return apiClient<FileUploadResponse>(`${BASE_URL}/profile/image`, {
     method: "POST",
-    headers,
     body: formData,
   });
-
-  return handleResponse<FileUploadResponse>(response);
 }
 
 // 4. Upload Intro Video
@@ -184,20 +128,10 @@ export async function uploadIntroVideoApi(file: File): Promise<FileUploadRespons
   const formData = new FormData();
   formData.append("file", file);
 
-  const token = localStorage.getItem("access_token");
-  const headers: Record<string, string> = {};
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${BASE_URL}/profile/intro-video`, {
+  return apiClient<FileUploadResponse>(`${BASE_URL}/profile/intro-video`, {
     method: "POST",
-    headers,
     body: formData,
   });
-
-  return handleResponse<FileUploadResponse>(response);
 }
 
 // 5. Upload Document
@@ -207,28 +141,15 @@ export async function uploadDocumentApi(file: File, title: string, category: str
   formData.append("title", title);
   formData.append("category", category);
 
-  const token = localStorage.getItem("access_token");
-  const headers: Record<string, string> = {};
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${BASE_URL}/profile/documents`, {
+  return apiClient<any>(`${BASE_URL}/profile/documents`, {
     method: "POST",
-    headers,
     body: formData,
   });
-
-  return handleResponse<any>(response);
 }
 
 // 6. Get Dashboard Data
 export async function getExpertDashboardApi(): Promise<DashboardResponse> {
-  const response = await fetch(`${BASE_URL}/dashboard`, {
+  return apiClient<DashboardResponse>(`${BASE_URL}/dashboard`, {
     method: "GET",
-    headers: getAuthHeaders(),
   });
-
-  return handleResponse<DashboardResponse>(response);
 }

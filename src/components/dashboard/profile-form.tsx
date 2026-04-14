@@ -228,14 +228,14 @@ export default function ProfileForm({ initialData, isPending, initialTab }) {
           endDate: edu.endDate || "",
           current: !!edu.current
         })),
-        languages: Array.isArray(languages) ? languages : (typeof languages === 'string' ? languages.split(',').map(t => t.trim()).filter(Boolean) : []),
+        languages: normalizeArray(languages),
         latestEducation: education.length > 0 ? education[education.length - 1]?.institution : null,
         // Additional fields
         timezone: timezone || undefined,
         gender: gender || undefined,
         location: location || undefined,
         socialLinks: socialLinks || {},
-        tags: Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+        tags: normalizeArray(tags),
         workHistory: Array.isArray(workHistory) ? workHistory : [],
         services: services || [],
         documents: documents || [],

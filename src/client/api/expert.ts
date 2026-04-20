@@ -2,7 +2,7 @@ import { apiClient, ApiError as ExpertError } from "./api-client";
 export { ExpertError };
 
 // const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/experts";
-const BASE_URL = "http://localhost:3000/experts";
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000") + "/experts";
 
 // Types for API responses
 export type ExpertProfileResponse = {
